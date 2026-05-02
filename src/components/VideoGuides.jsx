@@ -35,7 +35,7 @@ const List = styled(motion.div)`
   gap: 12px;
 `;
 
-const Card = styled(motion(Link))`
+const Card = styled(motion.create(Link))`
   display: flex;
   align-items: center;
   gap: 24px;
@@ -160,9 +160,9 @@ const ArrowWrap = styled.div`
 `;
 
 const itemVariant = {
-  hidden: { opacity: 0, y: 20 },
+  hidden: { opacity: 0 },
   visible: (i) => ({
-    opacity: 1, y: 0,
+    opacity: 1,
     transition: { duration: 0.4, delay: i * 0.1 },
   }),
 };
@@ -171,7 +171,6 @@ export default function VideoGuides() {
   return (
     <Section>
       <AnimatedDiv variants={fadeUp}>
-        <Label>Video instructions</Label>
         <Title>How to get started</Title>
       </AnimatedDiv>
 

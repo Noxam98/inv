@@ -71,7 +71,6 @@ export default function IndsSection() {
     <Section>
       <Grid>
         <AnimatedDiv variants={slideLeft}>
-          <Label>What is INDS?</Label>
           <Question>INDS ?</Question>
         </AnimatedDiv>
         <AnimatedDiv variants={slideRight}>

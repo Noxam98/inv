@@ -1,6 +1,5 @@
 import { useEffect, useRef } from 'react';
 import styled, { keyframes } from 'styled-components';
-import { motion } from 'framer-motion';
 
 /* ─── keyframes ─── */
 const float = keyframes`
@@ -48,16 +47,35 @@ const Wrap = styled.div`
   @media (max-width: 768px) {
     display: none;
   }
+  @media (prefers-reduced-motion: reduce) {
+    & * {
+      animation: none !important;
+    }
+  }
 `;
 
-/* ─── outer glow halo ─── */
+/* ─── outer glow halo (gradient does the feathering, no blur filter) ─── */
 const Halo = styled.div`
   position: absolute;
   inset: -30%;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(88,19,133,0.35) 0%, transparent 65%);
+  background: radial-gradient(circle,
+    rgba(88, 19, 133, 0.35) 0%,
+    rgba(88, 19, 133, 0.22) 22%,
+    rgba(88, 19, 133, 0.10) 45%,
+    rgba(88, 19, 133, 0.04) 65%,
+    transparent             82%
+  );
   animation: ${pulse} 4s ease-in-out infinite;
-  filter: blur(40px);
+  will-change: opacity, transform;
+`;
+
+/* ─── parallax wrapper for cursor reaction ─── */
+const Parallax = styled.div`
+  position: absolute;
+  inset: 0;
+  transform: translate(var(--orb-tx, 0px), var(--orb-ty, 0px));
+  will-change: transform;
 `;
 
 /* ─── orb core ─── */
@@ -65,6 +83,7 @@ const OrbFloat = styled.div`
   position: absolute;
   inset: 0;
   animation: ${float} 7s ease-in-out infinite;
+  will-change: transform;
 `;
 
 const Orb = styled.div`
@@ -83,6 +102,7 @@ const Orb = styled.div`
     0 0 200px rgba(60,  10, 100, 0.25),
     inset 0 0 40px rgba(200, 150, 255, 0.15);
   animation: ${pulse} 4s ease-in-out infinite;
+  will-change: transform, opacity;
 
   /* glare */
   &::before {
@@ -120,6 +140,7 @@ const Ring = styled.div`
   border: 1px solid rgba(155, 93, 229, ${({ $op }) => $op ?? 0.3});
   animation: ${({ $rev }) => $rev ? spinRev : spin}
              ${({ $dur }) => $dur ?? 12}s linear infinite;
+  will-change: transform;
 `;
 
 const Ring1 = styled(Ring)`
@@ -151,24 +172,54 @@ const Canvas = styled.canvas`
   pointer-events: none;
 `;
 
-function useParticles(canvasRef) {
+/* ─── hooks ─── */
+function usePrefersReducedMotion() {
+  const ref = useRef(false);
   useEffect(() => {
+    const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
+    ref.current = mq.matches;
+    const onChange = (e) => { ref.current = e.matches; };
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, []);
+  return ref;
+}
+
+function useVisibility(targetRef) {
+  const visibleRef = useRef(true);
+  useEffect(() => {
+    const el = targetRef.current;
+    if (!el || typeof IntersectionObserver === 'undefined') return;
+    const io = new IntersectionObserver(
+      ([entry]) => { visibleRef.current = entry.isIntersecting; },
+      { rootMargin: '80px' }
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [targetRef]);
+  return visibleRef;
+}
+
+function useParticles(canvasRef, mouseRef, visibleRef, reducedRef) {
+  useEffect(() => {
+    if (reducedRef.current) return;
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     let raf;
 
-    const W = canvas.offsetWidth;
-    const H = canvas.offsetHeight;
-    canvas.width  = W;
-    canvas.height = H;
+    const resize = () => {
+      canvas.width  = canvas.offsetWidth;
+      canvas.height = canvas.offsetHeight;
+    };
+    resize();
+    window.addEventListener('resize', resize);
 
-    const cx = W / 2;
-    const cy = H / 2;
-
+    const W0 = canvas.width;
+    const H0 = canvas.height;
     const particles = Array.from({ length: 55 }, () => {
       const angle  = Math.random() * Math.PI * 2;
-      const radius = 80 + Math.random() * (Math.min(W, H) * 0.36);
+      const radius = 80 + Math.random() * (Math.min(W0, H0) * 0.36);
       return {
         angle,
         radius,
@@ -177,45 +228,154 @@ function useParticles(canvasRef) {
         alpha:  Math.random() * 0.6 + 0.2,
         pulse:  Math.random() * Math.PI * 2,
         pulseS: Math.random() * 0.02 + 0.01,
+        ox: 0,
+        oy: 0,
       };
     });
 
+    const R  = 110;
+    const R2 = R * R;
+    const TAU = Math.PI * 2;
+
     function draw() {
+      if (!visibleRef.current) {
+        raf = requestAnimationFrame(draw);
+        return;
+      }
+      const W = canvas.width;
+      const H = canvas.height;
+      const cx = W / 2;
+      const cy = H / 2;
       ctx.clearRect(0, 0, W, H);
-      particles.forEach(p => {
-        p.angle  += p.speed;
-        p.pulse  += p.pulseS;
-        const x = cx + Math.cos(p.angle) * p.radius;
-        const y = cy + Math.sin(p.angle) * p.radius;
-        const a = p.alpha * (0.7 + 0.3 * Math.sin(p.pulse));
+
+      const mouse = mouseRef.current;
+      const active = mouse.active;
+      const mx = mouse.x;
+      const my = mouse.y;
+
+      for (let i = 0; i < particles.length; i++) {
+        const p = particles[i];
+        p.angle += p.speed;
+        p.pulse += p.pulseS;
+        const baseX = cx + Math.cos(p.angle) * p.radius;
+        const baseY = cy + Math.sin(p.angle) * p.radius;
+
+        let tx = 0, ty = 0, proxBoost = 0;
+        if (active) {
+          const dx = mx - baseX;
+          const dy = my - baseY;
+          const d2 = dx * dx + dy * dy;
+          if (d2 < R2) {
+            const d = Math.sqrt(d2) || 1;
+            const f = 1 - d / R;
+            tx = -(dx / d) * f * 26;
+            ty = -(dy / d) * f * 26;
+            proxBoost = f * 0.6;
+          }
+        }
+        p.ox += (tx - p.ox) * 0.12;
+        p.oy += (ty - p.oy) * 0.12;
+
+        const x = baseX + p.ox;
+        const y = baseY + p.oy;
+        let a = p.alpha * (0.7 + 0.3 * Math.sin(p.pulse)) + proxBoost;
+        if (a > 1) a = 1;
+        const rCh = (180 + proxBoost * 50) | 0;
+        const gCh = (120 + proxBoost * 60) | 0;
 
         ctx.beginPath();
-        ctx.arc(x, y, p.size, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(180, 120, 255, ${a})`;
+        ctx.arc(x, y, p.size + proxBoost * 1.4, 0, TAU);
+        ctx.fillStyle = `rgba(${rCh},${gCh},255,${a})`;
         ctx.fill();
-      });
+      }
       raf = requestAnimationFrame(draw);
     }
 
     draw();
-    return () => cancelAnimationFrame(raf);
-  }, []);
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener('resize', resize);
+    };
+  }, [canvasRef, mouseRef, visibleRef, reducedRef]);
+}
+
+function useOrbParallax(wrapRef, mouseRef, visibleRef, reducedRef) {
+  useEffect(() => {
+    if (reducedRef.current) return;
+    const wrap = wrapRef.current;
+    if (!wrap) return;
+    let raf = 0;
+    const target = { x: 0, y: 0 };
+    const current = { x: 0, y: 0 };
+
+    const onMove = (e) => {
+      if (!visibleRef.current) return;
+      const rect = wrap.getBoundingClientRect();
+      const cx = rect.left + rect.width / 2;
+      const cy = rect.top + rect.height / 2;
+      const dx = e.clientX - cx;
+      const dy = e.clientY - cy;
+      const reach = Math.max(window.innerWidth, window.innerHeight) * 0.45;
+      target.x = Math.max(-1, Math.min(1, dx / reach));
+      target.y = Math.max(-1, Math.min(1, dy / reach));
+
+      const canvas = wrap.querySelector('canvas');
+      if (canvas) {
+        const cRect = canvas.getBoundingClientRect();
+        mouseRef.current = {
+          x: (e.clientX - cRect.left) * (canvas.width / cRect.width),
+          y: (e.clientY - cRect.top) * (canvas.height / cRect.height),
+          active: true,
+        };
+      }
+    };
+
+    const onLeave = () => {
+      mouseRef.current = { x: -9999, y: -9999, active: false };
+    };
+
+    const tick = () => {
+      if (visibleRef.current) {
+        current.x += (target.x - current.x) * 0.06;
+        current.y += (target.y - current.y) * 0.06;
+        wrap.style.setProperty('--orb-tx', `${current.x * 26}px`);
+        wrap.style.setProperty('--orb-ty', `${current.y * 18}px`);
+      }
+      raf = requestAnimationFrame(tick);
+    };
+
+    window.addEventListener('mousemove', onMove, { passive: true });
+    window.addEventListener('mouseleave', onLeave);
+    tick();
+    return () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseleave', onLeave);
+      if (raf) cancelAnimationFrame(raf);
+    };
+  }, [wrapRef, mouseRef, visibleRef, reducedRef]);
 }
 
 export default function HeroOrb() {
   const canvasRef = useRef(null);
-  useParticles(canvasRef);
+  const wrapRef = useRef(null);
+  const mouseRef = useRef({ x: -9999, y: -9999, active: false });
+  const reducedRef = usePrefersReducedMotion();
+  const visibleRef = useVisibility(wrapRef);
+  useParticles(canvasRef, mouseRef, visibleRef, reducedRef);
+  useOrbParallax(wrapRef, mouseRef, visibleRef, reducedRef);
 
   return (
-    <Wrap>
-      <Halo />
-      <Canvas ref={canvasRef} />
-      <OrbFloat>
-        <Ring1 $dur={10} />
-        <Ring2 $dur={16} $rev />
-        <Ring3 $dur={22} />
-        <Orb />
-      </OrbFloat>
+    <Wrap ref={wrapRef}>
+      <Parallax>
+        <Halo />
+        <Canvas ref={canvasRef} />
+        <OrbFloat>
+          <Ring1 $dur={10} />
+          <Ring2 $dur={16} $rev />
+          <Ring3 $dur={22} />
+          <Orb />
+        </OrbFloat>
+      </Parallax>
     </Wrap>
   );
 }

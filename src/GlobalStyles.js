@@ -9,6 +9,7 @@ const GlobalStyles = createGlobalStyle`
 
   html {
     scroll-behavior: smooth;
+    overflow-x: clip;
   }
 
   body {
@@ -17,7 +18,12 @@ const GlobalStyles = createGlobalStyle`
     font-family: ${({ theme }) => theme.fonts.body};
     font-size: 16px;
     line-height: 1.6;
-    overflow-x: hidden;
+    overflow-x: clip;
+    width: 100%;
+  }
+
+  #root {
+    overflow-x: clip;
   }
 
   a {

@@ -1,12 +1,85 @@
+import { useEffect, useRef } from 'react';
 import styled from 'styled-components';
 
+const GLYPHS = '█▓▒░01ABCDEF/\\<>!@#$%^&*?+-=:×÷';
+
+function randomGlyph() {
+  return GLYPHS[Math.floor(Math.random() * GLYPHS.length)];
+}
+
+function DecryptText({ children, delay = 0, duration = 800 }) {
+  const ref = useRef(null);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const original = String(children);
+    if (!original) return;
+    let raf = 0;
+    let started = false;
+
+    const fillScrambled = () => {
+      let out = '';
+      for (let i = 0; i < original.length; i++) {
+        out += original[i] === ' ' ? ' ' : randomGlyph();
+      }
+      el.textContent = out;
+    };
+    fillScrambled();
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((e) => {
+          if (e.isIntersecting && !started) {
+            started = true;
+            observer.disconnect();
+            const startAt = performance.now() + delay;
+            const tick = (now) => {
+              const elapsed = Math.max(0, now - startAt);
+              const progress = Math.min(1, elapsed / duration);
+              const len = original.length;
+              let out = '';
+              for (let i = 0; i < len; i++) {
+                const ch = original[i];
+                if (ch === ' ' || ch === '\n') {
+                  out += ch;
+                  continue;
+                }
+                const cp = progress * (len + 6) - i;
+                if (cp >= 1) out += ch;
+                else out += randomGlyph();
+              }
+              el.textContent = out;
+              if (progress < 1) {
+                raf = requestAnimationFrame(tick);
+              } else {
+                el.textContent = original;
+              }
+            };
+            raf = requestAnimationFrame(tick);
+          }
+        });
+      },
+      { threshold: 0.25 },
+    );
+
+    observer.observe(el);
+    return () => {
+      observer.disconnect();
+      if (raf) cancelAnimationFrame(raf);
+    };
+  }, [children, delay, duration]);
+
+  return <span ref={ref} />;
+}
+
 const features = [
-  { num: '01', text: 'Key generation — on the device, without access to the network' },
-  { num: '02', text: 'Lack of a block browser (exchange by tx-hashes, without an open list)' },
-  { num: '03', text: 'No KYC and logs' },
-  { num: '04', text: 'No open API — external whitelist connections (on request)' },
-  { num: '05', text: 'TBD consensus (preliminarily — hybrid proof)' },
-  { num: '06', text: 'Modules: network, keys, encryption, smart contracts, UI, exchange.' },
+  { num: '01', text: 'Key generation — on the device, without access to the network', delay: 420 },
+  { num: '02', text: 'Lack of a block browser (exchange by tx-hashes, without an open list)', delay: 80 },
+  { num: '03', text: 'No KYC and logs', delay: 720 },
+  { num: '04', text: 'No open API — external whitelist connections (on request)', delay: 240 },
+  { num: '05', text: 'TBD consensus (preliminarily — hybrid proof)', delay: 980 },
+  { num: '06', text: 'Modules: network, keys, encryption, smart contracts, UI, exchange.', delay: 560 },
 ];
 
 const privacyPoints = [
@@ -32,51 +105,66 @@ const Inner = styled.div`
 
 const Grid = styled.div`
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 60px;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  gap: 56px;
   align-items: start;
 
   @media (max-width: ${({ theme }) => theme.breakpoints.desktop}) {
     grid-template-columns: 1fr;
-    gap: 40px;
+    gap: 48px;
   }
 `;
 
 const FeaturesList = styled.div`
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 24px;
+  gap: 18px;
 
-  @media (max-width: ${({ theme }) => theme.breakpoints.mobile}) {
+  @media (max-width: ${({ theme }) => theme.breakpoints.tablet}) {
     grid-template-columns: 1fr;
   }
 `;
 
 const FeatureItem = styled.div`
-  background: ${({ theme }) => theme.colors.surface};
-  border: 1px solid ${({ theme }) => theme.colors.border};
-  border-radius: 12px;
-  padding: 24px 20px;
-  transition: background 0.3s;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  background: rgba(30, 10, 55, 0.55);
+  border: 1px solid rgba(155, 93, 229, 0.18);
+  border-radius: 28px;
+  padding: 16px 24px 16px 16px;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  transition: background 0.3s, border-color 0.3s;
+  min-height: 96px;
 
   &:hover {
-    background: ${({ theme }) => theme.colors.surfaceMid};
+    background: rgba(45, 15, 80, 0.65);
+    border-color: rgba(155, 93, 229, 0.35);
   }
 `;
 
-const Num = styled.div`
+const NumBadge = styled.div`
+  flex-shrink: 0;
+  width: 64px;
+  height: 64px;
+  border-radius: 14px;
+  background: rgba(68, 4, 98, 0.55);
+  border: 1px solid rgba(155, 93, 229, 0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
   font-family: ${({ theme }) => theme.fonts.heading};
-  font-size: 32px;
-  font-weight: 700;
-  color: rgba(155, 93, 229, 0.4);
-  margin-bottom: 12px;
-  letter-spacing: 1px;
+  font-size: 22px;
+  font-weight: 600;
+  color: ${({ theme }) => theme.colors.white};
+  letter-spacing: 0.5px;
 `;
 
 const FeatureText = styled.p`
-  font-size: 13px;
-  line-height: 1.6;
-  color: ${({ theme }) => theme.colors.gray};
+  font-size: 14px;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.85);
 `;
 
 const PrivacyBlock = styled.div`
@@ -132,12 +220,13 @@ export default function SecurityFeatures() {
       <Inner>
         <Grid>
           <div>
-            <Label>Core principles</Label>
             <Title>Security<br />Architecture</Title>
             <FeaturesList>
-              {features.map(({ num, text }) => (
+              {features.map(({ num, text, delay }) => (
                 <FeatureItem key={num}>
-                  <Num>{num}</Num>
+                  <NumBadge>
+                    <DecryptText delay={delay} duration={600}>{num}</DecryptText>
+                  </NumBadge>
                   <FeatureText>{text}</FeatureText>
                 </FeatureItem>
               ))}
@@ -145,8 +234,7 @@ export default function SecurityFeatures() {
           </div>
 
           <PrivacyBlock>
-            <Label>Privacy</Label>
-            <Title>Zero Trust<br />by Design</Title>
+            <Title>Security of<br />Development</Title>
             {privacyPoints.map((point, i) => (
               <PrivacyItem key={i}>
                 <Dot />

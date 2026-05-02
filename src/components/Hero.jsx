@@ -82,11 +82,10 @@ const Tag = styled(motion.span)`
 /* ─── animated heading ─── */
 const HeadingWrap = styled.h1`
   font-family: ${({ theme }) => theme.fonts.heading};
-  font-size: clamp(32px, 5vw, 72px);
+  font-size: clamp(24px, 3.6vw, 48px);
   font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 2px;
-  line-height: 1.1;
+  letter-spacing: 0;
+  line-height: 1.15;
   max-width: 740px;
   color: ${({ theme }) => theme.colors.white};
   margin-bottom: 28px;
