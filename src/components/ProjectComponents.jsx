@@ -89,6 +89,12 @@ const Card = styled(motion.div)`
   height: 100%;
   display: flex;
   flex-direction: column;
+  transition: transform 0.35s ease, box-shadow 0.35s ease;
+
+  &:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 14px 40px rgba(155, 93, 229, 0.18);
+  }
 `;
 
 const TopLine = styled(motion.div)`
@@ -100,6 +106,11 @@ const TopLine = styled(motion.div)`
   background: ${({ theme }) => theme.colors.accentLight};
   transform-origin: left center;
   z-index: 3;
+  transition: box-shadow 0.35s ease;
+
+  ${Card}:hover & {
+    box-shadow: 0 0 14px rgba(199, 125, 255, 0.7);
+  }
 `;
 
 const ContentMask = styled.div`
@@ -116,12 +127,13 @@ const Content = styled(motion.div)`
   background: transparent;
   border: 1px solid transparent;
   border-top: none;
-  transition: border-color 0.35s ease;
+  transition: border-color 0.35s ease, background 0.35s ease;
   flex: 1;
   width: 100%;
 
   ${Card}:hover & {
     border-color: rgba(155, 93, 229, 0.4);
+    background: linear-gradient(180deg, rgba(88, 19, 133, 0.10), transparent 60%);
   }
 `;
 
@@ -137,6 +149,11 @@ const CardName = styled.h3`
   color: ${({ theme }) => theme.colors.white};
   margin-bottom: 14px;
   letter-spacing: 0.3px;
+  transition: color 0.35s ease;
+
+  ${Card}:hover & {
+    color: ${({ theme }) => theme.colors.accentLight};
+  }
 `;
 
 const CardDesc = styled.p`
