@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useRef } from 'react';
 import styled from 'styled-components';
 import { motion } from 'framer-motion';
 
@@ -7,31 +7,26 @@ const components = [
     name: 'INDS Blockchain',
     desc: 'Its own network without a block explorer, configurable privacy, without an open API.',
     delay: 0.35,
-    mode: 'chain',
   },
   {
     name: 'INDS Wallet',
     desc: 'Completely offline key generation, synchronization only over the network without saving private information.',
     delay: 0.05,
-    mode: 'vault',
   },
   {
     name: 'INDS Exchange',
     desc: 'An internal exchanger built into the wallet for fiat/crypto/crypto conversion.',
     delay: 0.6,
-    mode: 'flow',
   },
   {
     name: 'INDS Contracts',
     desc: 'Secure implementation of smart contracts for interaction between wallets, cards and exchanges.',
     delay: 0.2,
-    mode: 'mesh',
   },
   {
     name: 'INDS Site',
     desc: 'Regular site for users with basic information, wallet download. Closed area with presentation for investors.',
     delay: 0.48,
-    mode: 'split',
   },
 ];
 
@@ -130,18 +125,6 @@ const Content = styled(motion.div)`
   }
 `;
 
-const ParticleCanvas = styled.canvas`
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  pointer-events: none;
-  z-index: 1;
-  filter: blur(6px);
-  opacity: 0;
-  transition: opacity 0.9s ease-out;
-`;
-
 const CardInner = styled.div`
   position: relative;
   z-index: 2;
@@ -183,111 +166,7 @@ const contentV = {
   },
 };
 
-function PolygonField({ hostRef, mode, delay = 0 }) {
-  const canvasRef = useRef(null);
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    const host = hostRef.current;
-    if (!canvas || !host) return;
-    if (typeof canvas.transferControlToOffscreen !== 'function') return;
-
-    if (canvas._pfTeardown) {
-      clearTimeout(canvas._pfTeardown);
-      canvas._pfTeardown = null;
-    }
-
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
-
-    let worker = canvas._pfWorker;
-    if (!worker) {
-      const rect = host.getBoundingClientRect();
-      canvas.style.width = rect.width + 'px';
-      canvas.style.height = rect.height + 'px';
-      const offscreen = canvas.transferControlToOffscreen();
-      worker = new Worker(
-        new URL('./polygonFieldWorker.js', import.meta.url),
-        { type: 'module' },
-      );
-      canvas._pfWorker = worker;
-      worker.postMessage(
-        { type: 'init', canvas: offscreen, mode, w: rect.width, h: rect.height, dpr },
-        [offscreen],
-      );
-    }
-
-    const sendResize = () => {
-      const rect = host.getBoundingClientRect();
-      canvas.style.width = rect.width + 'px';
-      canvas.style.height = rect.height + 'px';
-      worker.postMessage({ type: 'resize', w: rect.width, h: rect.height, dpr });
-    };
-
-    let lastX = 0;
-    let lastY = 0;
-    const onMove = (e) => {
-      const r = host.getBoundingClientRect();
-      const x = e.clientX - r.left;
-      const y = e.clientY - r.top;
-      const vx = x - lastX;
-      const vy = y - lastY;
-      lastX = x;
-      lastY = y;
-      worker.postMessage({ type: 'mouse', x, y, vx, vy, active: true });
-    };
-    const onLeave = () => {
-      worker.postMessage({ type: 'mouse', x: -9999, y: -9999, vx: 0, vy: 0, active: false });
-    };
-
-    host.addEventListener('mousemove', onMove);
-    host.addEventListener('mouseleave', onLeave);
-    window.addEventListener('resize', sendResize);
-
-    let kickoffTimeout = 0;
-    let kickedOff = canvas._pfStarted;
-    const kickoff = () => {
-      if (kickedOff) return;
-      kickedOff = true;
-      kickoffTimeout = window.setTimeout(() => {
-        canvas.style.opacity = '1';
-        canvas._pfStarted = true;
-        worker.postMessage({ type: 'start' });
-      }, (delay + 0.9) * 1000);
-    };
-
-    let io;
-    if (typeof IntersectionObserver !== 'undefined') {
-      io = new IntersectionObserver(([entry]) => {
-        if (entry.isIntersecting) {
-          kickoff();
-          io.disconnect();
-        }
-      }, { rootMargin: '-60px' });
-      io.observe(host);
-    } else {
-      kickoff();
-    }
-
-    return () => {
-      if (io) io.disconnect();
-      if (kickoffTimeout) clearTimeout(kickoffTimeout);
-      host.removeEventListener('mousemove', onMove);
-      host.removeEventListener('mouseleave', onLeave);
-      window.removeEventListener('resize', sendResize);
-      canvas._pfTeardown = setTimeout(() => {
-        worker.postMessage({ type: 'destroy' });
-        worker.terminate();
-        delete canvas._pfWorker;
-        canvas._pfStarted = false;
-        canvas._pfTeardown = null;
-      }, 0);
-    };
-  }, [hostRef, mode, delay]);
-
-  return <ParticleCanvas ref={canvasRef} />;
-}
-
-function CardItem({ name, desc, delay, mode }) {
+function CardItem({ name, desc, delay }) {
   const hostRef = useRef(null);
   return (
     <Card
@@ -298,7 +177,6 @@ function CardItem({ name, desc, delay, mode }) {
       variants={cardV(delay)}
     >
       <TopLine variants={lineV} />
-      <PolygonField hostRef={hostRef} mode={mode} delay={delay} />
       <ContentMask>
         <Content variants={contentV}>
           <CardInner>
