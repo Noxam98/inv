@@ -60,6 +60,7 @@ const Column = styled(motion.div)`
   background: rgba(68, 4, 98, 0.15);
   border: 1px solid rgba(155, 93, 229, 0.18);
   box-shadow: 0 12px 40px rgba(0,0,0,0.4), inset 0 1px 0 rgba(180,120,255,0.07);
+  transition: background 0.4s ease, border-color 0.4s ease, box-shadow 0.4s ease;
 
   /* top edge highlight */
   &::after {
@@ -68,6 +69,25 @@ const Column = styled(motion.div)`
     top: 0; left: 10%; right: 10%;
     height: 1px;
     background: linear-gradient(90deg, transparent, rgba(155,93,229,0.25), transparent);
+    transition: background 0.4s ease;
+  }
+
+  &:hover {
+    background: rgba(88, 19, 133, 0.22);
+    border-color: rgba(180, 130, 255, 0.42);
+    box-shadow:
+      0 16px 48px rgba(0, 0, 0, 0.45),
+      0 0 60px rgba(155, 93, 229, 0.22),
+      inset 0 1px 0 rgba(200, 150, 255, 0.14);
+
+    &::after {
+      background: linear-gradient(
+        90deg,
+        transparent,
+        rgba(200, 150, 255, 0.6),
+        transparent
+      );
+    }
   }
 
   @media (max-width: ${({ theme }) => theme.breakpoints.mobile}) {
@@ -117,6 +137,7 @@ const ListItem = styled(motion.li)`
   font-size: 13.5px;
   line-height: 1.55;
   color: rgba(255, 255, 255, 0.9);
+  transition: color 0.25s ease, transform 0.25s ease;
 
   &::before {
     content: '•';
@@ -125,6 +146,11 @@ const ListItem = styled(motion.li)`
     color: inherit;
     font-size: 16px;
     line-height: 1.3;
+  }
+
+  &:hover {
+    color: #fff;
+    transform: translateX(4px);
   }
 `;
 

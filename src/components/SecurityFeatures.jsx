@@ -1,85 +1,12 @@
-import { useEffect, useRef } from 'react';
 import styled from 'styled-components';
 
-const GLYPHS = '█▓▒░01ABCDEF/\\<>!@#$%^&*?+-=:×÷';
-
-function randomGlyph() {
-  return GLYPHS[Math.floor(Math.random() * GLYPHS.length)];
-}
-
-function DecryptText({ children, delay = 0, duration = 800 }) {
-  const ref = useRef(null);
-
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const original = String(children);
-    if (!original) return;
-    let raf = 0;
-    let started = false;
-
-    const fillScrambled = () => {
-      let out = '';
-      for (let i = 0; i < original.length; i++) {
-        out += original[i] === ' ' ? ' ' : randomGlyph();
-      }
-      el.textContent = out;
-    };
-    fillScrambled();
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((e) => {
-          if (e.isIntersecting && !started) {
-            started = true;
-            observer.disconnect();
-            const startAt = performance.now() + delay;
-            const tick = (now) => {
-              const elapsed = Math.max(0, now - startAt);
-              const progress = Math.min(1, elapsed / duration);
-              const len = original.length;
-              let out = '';
-              for (let i = 0; i < len; i++) {
-                const ch = original[i];
-                if (ch === ' ' || ch === '\n') {
-                  out += ch;
-                  continue;
-                }
-                const cp = progress * (len + 6) - i;
-                if (cp >= 1) out += ch;
-                else out += randomGlyph();
-              }
-              el.textContent = out;
-              if (progress < 1) {
-                raf = requestAnimationFrame(tick);
-              } else {
-                el.textContent = original;
-              }
-            };
-            raf = requestAnimationFrame(tick);
-          }
-        });
-      },
-      { threshold: 0.25 },
-    );
-
-    observer.observe(el);
-    return () => {
-      observer.disconnect();
-      if (raf) cancelAnimationFrame(raf);
-    };
-  }, [children, delay, duration]);
-
-  return <span ref={ref} />;
-}
-
 const features = [
-  { num: '01', text: 'Key generation — on the device, without access to the network', delay: 420 },
-  { num: '02', text: 'Lack of a block browser (exchange by tx-hashes, without an open list)', delay: 80 },
-  { num: '03', text: 'No KYC and logs', delay: 720 },
-  { num: '04', text: 'No open API — external whitelist connections (on request)', delay: 240 },
-  { num: '05', text: 'TBD consensus (preliminarily — hybrid proof)', delay: 980 },
-  { num: '06', text: 'Modules: network, keys, encryption, smart contracts, UI, exchange.', delay: 560 },
+  { num: '01', text: 'Key generation — on the device, without access to the network' },
+  { num: '02', text: 'Lack of a block browser (exchange by tx-hashes, without an open list)' },
+  { num: '03', text: 'No KYC and logs' },
+  { num: '04', text: 'No open API — external whitelist connections (on request)' },
+  { num: '05', text: 'TBD consensus (preliminarily — hybrid proof)' },
+  { num: '06', text: 'Modules: network, keys, encryption, smart contracts, UI, exchange.' },
 ];
 
 const privacyPoints = [
@@ -224,11 +151,9 @@ export default function SecurityFeatures() {
           <div>
             <Title>Security<br />Architecture</Title>
             <FeaturesList>
-              {features.map(({ num, text, delay }) => (
+              {features.map(({ num, text }) => (
                 <FeatureItem key={num}>
-                  <NumBadge>
-                    <DecryptText delay={delay} duration={600}>{num}</DecryptText>
-                  </NumBadge>
+                  <NumBadge>{num}</NumBadge>
                   <FeatureText>{text}</FeatureText>
                 </FeatureItem>
               ))}
