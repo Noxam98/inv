@@ -25,7 +25,10 @@ const components = [
   },
   {
     name: 'INDS Site',
-    desc: 'Regular site for users with basic information, wallet download. Closed area with presentation for investors.',
+    desc: [
+      'Regular site for users with basic information, wallet download.',
+      'Closed area with presentation for investors.',
+    ],
     delay: 0.48,
   },
 ];
@@ -44,10 +47,11 @@ const Section = styled.section`
 
 const Title = styled.h2`
   font-family: ${({ theme }) => theme.fonts.heading};
-  font-size: clamp(22px, 2.6vw, 30px);
-  font-weight: 500;
-  letter-spacing: 0.5px;
-  color: ${({ theme }) => theme.colors.accentLight};
+  font-size: clamp(24px, 3vw, 40px);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  color: ${({ theme }) => theme.colors.white};
   text-align: center;
   margin-bottom: 72px;
 
@@ -162,6 +166,30 @@ const CardDesc = styled.p`
   color: rgba(255, 255, 255, 0.75);
 `;
 
+const CardDescList = styled.ul`
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+`;
+
+const CardDescItem = styled.li`
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: rgba(255, 255, 255, 0.75);
+
+  &::before {
+    content: '•';
+    flex-shrink: 0;
+    width: 8px;
+    color: inherit;
+    font-size: 16px;
+    line-height: 1.3;
+  }
+`;
+
 const cardV = (delay) => ({
   hidden: {},
   visible: {
@@ -198,7 +226,15 @@ function CardItem({ name, desc, delay }) {
         <Content variants={contentV}>
           <CardInner>
             <CardName>{name}</CardName>
-            <CardDesc>{desc}</CardDesc>
+            {Array.isArray(desc) ? (
+              <CardDescList>
+                {desc.map((line, i) => (
+                  <CardDescItem key={i}>{line}</CardDescItem>
+                ))}
+              </CardDescList>
+            ) : (
+              <CardDesc>{desc}</CardDesc>
+            )}
           </CardInner>
         </Content>
       </ContentMask>
