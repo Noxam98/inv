@@ -92,6 +92,8 @@ const privacyPoints = [
 const Section = styled.section`
   padding: 100px 40px;
   background: ${({ theme }) => theme.colors.bgSection};
+  content-visibility: auto;
+  contain-intrinsic-size: auto 700px;
 
   @media (max-width: ${({ theme }) => theme.breakpoints.tablet}) {
     padding: 60px 20px;

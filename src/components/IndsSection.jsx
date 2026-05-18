@@ -6,6 +6,8 @@ const Section = styled.section`
   padding: 100px 40px;
   max-width: 1280px;
   margin: 0 auto;
+  content-visibility: auto;
+  contain-intrinsic-size: auto 600px;
 
   @media (max-width: ${({ theme }) => theme.breakpoints.tablet}) {
     padding: 60px 20px;

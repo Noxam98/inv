@@ -31,6 +31,8 @@ const stages = [
 const Section = styled.section`
   padding: 100px 40px;
   overflow: visible;
+  content-visibility: auto;
+  contain-intrinsic-size: auto 800px;
 
   @media (max-width: ${({ theme }) => theme.breakpoints.tablet}) {
     padding: 60px 20px;

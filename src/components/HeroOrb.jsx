@@ -200,106 +200,82 @@ function useVisibility(targetRef) {
   return visibleRef;
 }
 
-function useParticles(canvasRef, mouseRef, visibleRef, reducedRef) {
+function useOrbWorker(canvasRef, wrapRef, reducedRef) {
   useEffect(() => {
     if (reducedRef.current) return;
     const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    let raf;
+    const wrap = wrapRef.current;
+    if (!canvas || !wrap) return;
+    if (typeof canvas.transferControlToOffscreen !== 'function') return;
 
-    const resize = () => {
-      canvas.width  = canvas.offsetWidth;
-      canvas.height = canvas.offsetHeight;
-    };
-    resize();
-    window.addEventListener('resize', resize);
-
-    const W0 = canvas.width;
-    const H0 = canvas.height;
-    const particles = Array.from({ length: 55 }, () => {
-      const angle  = Math.random() * Math.PI * 2;
-      const radius = 80 + Math.random() * (Math.min(W0, H0) * 0.36);
-      return {
-        angle,
-        radius,
-        speed:  (Math.random() * 0.003 + 0.001) * (Math.random() > 0.5 ? 1 : -1),
-        size:   Math.random() * 1.8 + 0.4,
-        alpha:  Math.random() * 0.6 + 0.2,
-        pulse:  Math.random() * Math.PI * 2,
-        pulseS: Math.random() * 0.02 + 0.01,
-        ox: 0,
-        oy: 0,
-      };
-    });
-
-    const R  = 110;
-    const R2 = R * R;
-    const TAU = Math.PI * 2;
-
-    function draw() {
-      if (!visibleRef.current) {
-        raf = requestAnimationFrame(draw);
-        return;
-      }
-      const W = canvas.width;
-      const H = canvas.height;
-      const cx = W / 2;
-      const cy = H / 2;
-      ctx.clearRect(0, 0, W, H);
-
-      const mouse = mouseRef.current;
-      const active = mouse.active;
-      const mx = mouse.x;
-      const my = mouse.y;
-
-      for (let i = 0; i < particles.length; i++) {
-        const p = particles[i];
-        p.angle += p.speed;
-        p.pulse += p.pulseS;
-        const baseX = cx + Math.cos(p.angle) * p.radius;
-        const baseY = cy + Math.sin(p.angle) * p.radius;
-
-        let tx = 0, ty = 0, proxBoost = 0;
-        if (active) {
-          const dx = mx - baseX;
-          const dy = my - baseY;
-          const d2 = dx * dx + dy * dy;
-          if (d2 < R2) {
-            const d = Math.sqrt(d2) || 1;
-            const f = 1 - d / R;
-            tx = -(dx / d) * f * 26;
-            ty = -(dy / d) * f * 26;
-            proxBoost = f * 0.6;
-          }
-        }
-        p.ox += (tx - p.ox) * 0.12;
-        p.oy += (ty - p.oy) * 0.12;
-
-        const x = baseX + p.ox;
-        const y = baseY + p.oy;
-        let a = p.alpha * (0.7 + 0.3 * Math.sin(p.pulse)) + proxBoost;
-        if (a > 1) a = 1;
-        const rCh = (180 + proxBoost * 50) | 0;
-        const gCh = (120 + proxBoost * 60) | 0;
-
-        ctx.beginPath();
-        ctx.arc(x, y, p.size + proxBoost * 1.4, 0, TAU);
-        ctx.fillStyle = `rgba(${rCh},${gCh},255,${a})`;
-        ctx.fill();
-      }
-      raf = requestAnimationFrame(draw);
+    if (canvas._heroTeardown) {
+      clearTimeout(canvas._heroTeardown);
+      canvas._heroTeardown = null;
     }
 
-    draw();
-    return () => {
-      cancelAnimationFrame(raf);
-      window.removeEventListener('resize', resize);
+    let worker = canvas._heroWorker;
+    let initialW = 0;
+    let initialH = 0;
+    if (!worker) {
+      initialW = canvas.offsetWidth;
+      initialH = canvas.offsetHeight;
+      canvas.width = initialW;
+      canvas.height = initialH;
+      const offscreen = canvas.transferControlToOffscreen();
+      worker = new Worker(
+        new URL('./heroOrbWorker.js', import.meta.url),
+        { type: 'module' },
+      );
+      canvas._heroWorker = worker;
+      worker.postMessage(
+        { type: 'init', canvas: offscreen, w: initialW, h: initialH },
+        [offscreen],
+      );
+    }
+
+    const resize = () => {
+      worker.postMessage({ type: 'resize', w: canvas.offsetWidth, h: canvas.offsetHeight });
     };
-  }, [canvasRef, mouseRef, visibleRef, reducedRef]);
+
+    const onMove = (e) => {
+      const cRect = canvas.getBoundingClientRect();
+      if (cRect.width === 0 || cRect.height === 0) return;
+      const x = (e.clientX - cRect.left) * (canvas.offsetWidth / cRect.width);
+      const y = (e.clientY - cRect.top) * (canvas.offsetHeight / cRect.height);
+      worker.postMessage({ type: 'mouse', x, y, active: true });
+    };
+    const onLeave = () => {
+      worker.postMessage({ type: 'mouse', x: -9999, y: -9999, active: false });
+    };
+
+    const io = new IntersectionObserver(
+      ([entry]) => {
+        worker.postMessage({ type: 'visibility', visible: entry.isIntersecting });
+      },
+      { rootMargin: '80px' },
+    );
+    io.observe(wrap);
+
+    window.addEventListener('resize', resize);
+    window.addEventListener('mousemove', onMove, { passive: true });
+    window.addEventListener('mouseleave', onLeave);
+
+    return () => {
+      io.disconnect();
+      window.removeEventListener('resize', resize);
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseleave', onLeave);
+      canvas._heroTeardown = setTimeout(() => {
+        worker.postMessage({ type: 'destroy' });
+        worker.terminate();
+        delete canvas._heroWorker;
+        canvas._heroTeardown = null;
+      }, 0);
+    };
+  }, [canvasRef, wrapRef, reducedRef]);
 }
 
-function useOrbParallax(wrapRef, mouseRef, visibleRef, reducedRef) {
+function useOrbParallax(wrapRef, visibleRef, reducedRef) {
   useEffect(() => {
     if (reducedRef.current) return;
     const wrap = wrapRef.current;
@@ -318,20 +294,6 @@ function useOrbParallax(wrapRef, mouseRef, visibleRef, reducedRef) {
       const reach = Math.max(window.innerWidth, window.innerHeight) * 0.45;
       target.x = Math.max(-1, Math.min(1, dx / reach));
       target.y = Math.max(-1, Math.min(1, dy / reach));
-
-      const canvas = wrap.querySelector('canvas');
-      if (canvas) {
-        const cRect = canvas.getBoundingClientRect();
-        mouseRef.current = {
-          x: (e.clientX - cRect.left) * (canvas.width / cRect.width),
-          y: (e.clientY - cRect.top) * (canvas.height / cRect.height),
-          active: true,
-        };
-      }
-    };
-
-    const onLeave = () => {
-      mouseRef.current = { x: -9999, y: -9999, active: false };
     };
 
     const tick = () => {
@@ -345,24 +307,21 @@ function useOrbParallax(wrapRef, mouseRef, visibleRef, reducedRef) {
     };
 
     window.addEventListener('mousemove', onMove, { passive: true });
-    window.addEventListener('mouseleave', onLeave);
     tick();
     return () => {
       window.removeEventListener('mousemove', onMove);
-      window.removeEventListener('mouseleave', onLeave);
       if (raf) cancelAnimationFrame(raf);
     };
-  }, [wrapRef, mouseRef, visibleRef, reducedRef]);
+  }, [wrapRef, visibleRef, reducedRef]);
 }
 
 export default function HeroOrb() {
   const canvasRef = useRef(null);
   const wrapRef = useRef(null);
-  const mouseRef = useRef({ x: -9999, y: -9999, active: false });
   const reducedRef = usePrefersReducedMotion();
   const visibleRef = useVisibility(wrapRef);
-  useParticles(canvasRef, mouseRef, visibleRef, reducedRef);
-  useOrbParallax(wrapRef, mouseRef, visibleRef, reducedRef);
+  useOrbWorker(canvasRef, wrapRef, reducedRef);
+  useOrbParallax(wrapRef, visibleRef, reducedRef);
 
   return (
     <Wrap ref={wrapRef}>

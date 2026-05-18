@@ -23,25 +23,12 @@ const decisions = [
   'Ethical protection against objectionable content or use',
 ];
 
-/* скрытый SVG с фильтром — рефракция как у стекла */
-function LiquidGlassDefs() {
-  return (
-    <svg style={{ position: 'absolute', width: 0, height: 0, overflow: 'hidden' }} aria-hidden="true">
-      <defs>
-        <filter id="lg-refract" x="-10%" y="-10%" width="120%" height="120%" colorInterpolationFilters="sRGB">
-          <feTurbulence type="fractalNoise" baseFrequency="0.012 0.018" numOctaves="3" seed="8" result="noise" />
-          <feDisplacementMap in="SourceGraphic" in2="noise" scale="12" xChannelSelector="R" yChannelSelector="G" result="displaced" />
-          <feGaussianBlur in="displaced" stdDeviation="0.4" result="blurred" />
-          <feBlend in="blurred" in2="SourceGraphic" mode="normal" />
-        </filter>
-      </defs>
-    </svg>
-  );
-}
 
 const Section = styled.section`
   position: relative;
   padding: 80px 40px;
+  content-visibility: auto;
+  contain-intrinsic-size: auto 700px;
 
   @media (max-width: ${({ theme }) => theme.breakpoints.tablet}) {
     padding: 60px 20px;
@@ -100,7 +87,6 @@ const GlassLayer = styled.div`
   inset: 0;
   border-radius: inherit;
   pointer-events: none;
-  filter: url(#lg-refract);
   background: rgba(68, 4, 98, 0.15);
   z-index: 0;
 `;
@@ -118,162 +104,66 @@ const FxCanvas = styled.canvas`
   transition: filter 0.4s ease;
 `;
 
-function ProblemFx() {
+function Fx({ mode }) {
   const canvasRef = useRef(null);
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
+    if (typeof canvas.transferControlToOffscreen !== 'function') return;
     const host = canvas.parentElement;
-    const ctx = canvas.getContext('2d');
-    let raf = 0;
+    if (!host) return;
+
+    if (canvas._fxTeardown) {
+      clearTimeout(canvas._fxTeardown);
+      canvas._fxTeardown = null;
+    }
+
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    let w = 0, h = 0;
-    const glitches = [];
 
-    function resize() {
+    let worker = canvas._fxWorker;
+    if (!worker) {
       const rect = host.getBoundingClientRect();
-      w = rect.width;
-      h = rect.height;
-      canvas.width = Math.floor(w * dpr);
-      canvas.height = Math.floor(h * dpr);
-      canvas.style.width = w + 'px';
-      canvas.style.height = h + 'px';
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      canvas.style.width = rect.width + 'px';
+      canvas.style.height = rect.height + 'px';
+      const offscreen = canvas.transferControlToOffscreen();
+      worker = new Worker(
+        new URL('./fxWorker.js', import.meta.url),
+        { type: 'module' },
+      );
+      canvas._fxWorker = worker;
+      worker.postMessage(
+        { type: 'init', canvas: offscreen, mode, w: rect.width, h: rect.height, dpr },
+        [offscreen],
+      );
     }
 
-    function spawnGlitch() {
-      glitches.push({
-        y: Math.random() * h,
-        height: 2 + Math.random() * 6,
-        speed: 1 + Math.random() * 2,
-        life: 1,
-        offset: (Math.random() - 0.5) * 20,
-      });
-    }
-
-    function loop(t) {
-      ctx.clearRect(0, 0, w, h);
-
-      const grad = ctx.createLinearGradient(0, 0, w, h);
-      const pulse = 0.5 + 0.5 * Math.sin(t * 0.0008);
-      grad.addColorStop(0, `rgba(220, 50, 60, ${0.022 + pulse * 0.018})`);
-      grad.addColorStop(0.5, `rgba(180, 40, 90, ${0.014 + pulse * 0.014})`);
-      grad.addColorStop(1, 'rgba(100, 20, 60, 0.018)');
-      ctx.fillStyle = grad;
-      ctx.fillRect(0, 0, w, h);
-
-      for (let i = 0; i < 3; i++) {
-        const sy = (((t * 0.05) + i * h / 3) % (h + 60)) - 30;
-        ctx.fillStyle = `rgba(255, 80, 60, 0.018)`;
-        ctx.fillRect(0, sy, w, 1);
-      }
-
-      if (Math.random() < 0.012) spawnGlitch();
-      for (let i = glitches.length - 1; i >= 0; i--) {
-        const g = glitches[i];
-        ctx.fillStyle = `rgba(255, 90, 100, ${0.035 * g.life})`;
-        ctx.fillRect(g.offset, g.y, w, g.height);
-        ctx.fillStyle = `rgba(80, 200, 255, ${0.022 * g.life})`;
-        ctx.fillRect(g.offset + 4, g.y + 1, w, g.height);
-        g.life -= 0.06;
-        if (g.life <= 0) glitches.splice(i, 1);
-      }
-
-      ctx.fillStyle = 'rgba(255, 100, 110, 0.025)';
-      for (let i = 0; i < 8; i++) {
-        const x = Math.random() * w;
-        const y = Math.random() * h;
-        ctx.fillRect(x, y, 1, 1);
-      }
-
-      raf = requestAnimationFrame(loop);
-    }
-
-    resize();
-    window.addEventListener('resize', resize);
-    raf = requestAnimationFrame(loop);
-    return () => {
-      cancelAnimationFrame(raf);
-      window.removeEventListener('resize', resize);
+    const resize = () => {
+      const r = host.getBoundingClientRect();
+      canvas.style.width = r.width + 'px';
+      canvas.style.height = r.height + 'px';
+      worker.postMessage({ type: 'resize', w: r.width, h: r.height, dpr });
     };
-  }, []);
-  return <FxCanvas ref={canvasRef} />;
-}
-
-function DecisionFx() {
-  const canvasRef = useRef(null);
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const host = canvas.parentElement;
-    const ctx = canvas.getContext('2d');
-    let raf = 0;
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    let w = 0, h = 0;
-    const ripples = [];
-
-    function resize() {
-      const rect = host.getBoundingClientRect();
-      w = rect.width;
-      h = rect.height;
-      canvas.width = Math.floor(w * dpr);
-      canvas.height = Math.floor(h * dpr);
-      canvas.style.width = w + 'px';
-      canvas.style.height = h + 'px';
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    }
-
-    function spawnRipple() {
-      ripples.push({
-        x: 30 + Math.random() * (w - 60),
-        y: 30 + Math.random() * (h - 60),
-        r: 0,
-        life: 1,
-      });
-    }
-
-    function loop(t) {
-      ctx.clearRect(0, 0, w, h);
-
-      for (let i = 0; i < 3; i++) {
-        const phase = t * 0.0008 + i * 1.4;
-        const yOff = Math.sin(phase) * 40;
-        const grad = ctx.createLinearGradient(0, h * 0.3 + yOff, w, h * 0.7 + yOff);
-        const a = 0.025;
-        grad.addColorStop(0, 'rgba(155, 93, 229, 0)');
-        grad.addColorStop(0.5, `rgba(180, 130, 255, ${a})`);
-        grad.addColorStop(1, 'rgba(155, 93, 229, 0)');
-        ctx.fillStyle = grad;
-        ctx.fillRect(0, 0, w, h);
-      }
-
-      if (Math.random() < 0.018) spawnRipple();
-      for (let i = ripples.length - 1; i >= 0; i--) {
-        const rp = ripples[i];
-        rp.r += 1.2;
-        rp.life -= 0.005;
-        if (rp.life <= 0) {
-          ripples.splice(i, 1);
-          continue;
-        }
-        ctx.strokeStyle = `rgba(190, 140, 255, ${rp.life * 0.16})`;
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.arc(rp.x, rp.y, rp.r, 0, Math.PI * 2);
-        ctx.stroke();
-      }
-
-      raf = requestAnimationFrame(loop);
-    }
-
-    resize();
     window.addEventListener('resize', resize);
-    raf = requestAnimationFrame(loop);
+
+    const io = new IntersectionObserver(
+      ([entry]) => {
+        worker.postMessage({ type: 'visibility', visible: entry.isIntersecting });
+      },
+      { rootMargin: '60px' },
+    );
+    io.observe(host);
+
     return () => {
-      cancelAnimationFrame(raf);
+      io.disconnect();
       window.removeEventListener('resize', resize);
+      canvas._fxTeardown = setTimeout(() => {
+        worker.postMessage({ type: 'destroy' });
+        worker.terminate();
+        delete canvas._fxWorker;
+        canvas._fxTeardown = null;
+      }, 0);
     };
-  }, []);
+  }, [mode]);
   return <FxCanvas ref={canvasRef} />;
 }
 
@@ -370,7 +260,6 @@ export default function ProblemsDecisions() {
   useScrollHue(sectionRef);
   return (
     <Section ref={sectionRef}>
-      <LiquidGlassDefs />
       <Inner>
         <Grid>
           <Column
@@ -381,7 +270,7 @@ export default function ProblemsDecisions() {
             viewport={{ once: true, margin: '-60px' }}
           >
             <GlassLayer $type="problem" />
-            <ProblemFx />
+            <Fx mode="problem" />
             <CardContent
               variants={cardContentV(0)}
               initial="hidden"
@@ -409,7 +298,7 @@ export default function ProblemsDecisions() {
             viewport={{ once: true, margin: '-60px' }}
           >
             <GlassLayer $type="decision" />
-            <DecisionFx />
+            <Fx mode="decision" />
             <CardContent
               variants={cardContentV(0.12)}
               initial="hidden"

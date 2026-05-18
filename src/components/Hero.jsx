@@ -13,6 +13,8 @@ const Section = styled.section`
   justify-content: center;
   background: #000;
   overflow: hidden;
+  content-visibility: auto;
+  contain-intrinsic-size: auto 100vh;
 `;
 
 const HeroBg = styled.div`

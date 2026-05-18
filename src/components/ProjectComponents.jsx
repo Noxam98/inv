@@ -39,6 +39,8 @@ const Section = styled.section`
   padding: 100px 40px;
   max-width: 1280px;
   margin: 0 auto;
+  content-visibility: auto;
+  contain-intrinsic-size: auto 900px;
 
   @media (max-width: ${({ theme }) => theme.breakpoints.tablet}) {
     padding: 60px 20px;
@@ -115,7 +117,7 @@ const ContentMask = styled.div`
 
 const Content = styled(motion.div)`
   position: relative;
-  padding: 24px 20px 4px;
+  padding: 24px 20px  4px;
   background: transparent;
   border: 1px solid transparent;
   border-top: none;
@@ -181,61 +183,6 @@ const contentV = {
   },
 };
 
-function ambientValue(mode, v, t, w, h) {
-  switch (mode) {
-    case 'chain': {
-      const phase = v.bx * 0.04 - t * 0.0018;
-      const s = Math.sin(phase);
-      return Math.max(0, s);
-    }
-    case 'vault': {
-      const cx = w / 2;
-      const cy = h / 2;
-      const d = Math.hypot(v.bx - cx, v.by - cy);
-      const phase = d * 0.08 - t * 0.0022;
-      const s = Math.sin(phase);
-      return Math.max(0, s);
-    }
-    case 'flow': {
-      const stream1 = Math.sin((v.bx - v.by) * 0.05 - t * 0.0032);
-      const stream2 = Math.sin((v.bx + v.by) * 0.05 + t * 0.0032);
-      return Math.max(0, Math.max(stream1, stream2));
-    }
-    case 'mesh': {
-      const period = 1200 + (v.seed * 180) % 600;
-      const localT = (t + v.seed * period * 7) % period;
-      const n = localT / period;
-      const sparkle = n < 0.2 ? Math.sin((n / 0.2) * Math.PI) : 0;
-
-      const cycle = 2800;
-      const ringT = (t % cycle) / cycle;
-      const originSeed = Math.floor(t / cycle);
-      const ox = 0.5 + 0.45 * Math.sin(originSeed * 1.37);
-      const oy = 0.5 + 0.45 * Math.cos(originSeed * 2.11);
-      const cx = ox * w;
-      const cy = oy * h;
-      const d = Math.hypot(v.bx - cx, v.by - cy);
-      const ringRadius = ringT * Math.max(w, h) * 1.4;
-      const ringWidth = 36;
-      const ring = Math.max(0, 1 - Math.abs(d - ringRadius) / ringWidth);
-      const ringFade = ringT < 0.85 ? 1 : 1 - (ringT - 0.85) / 0.15;
-
-      return Math.max(sparkle * 0.85, ring * ringFade * 0.9);
-    }
-    case 'split': {
-      const edge = w / 2;
-      if (v.bx < edge) {
-        const slow = 0.5 + 0.5 * Math.sin(v.by * 0.04 - t * 0.0008);
-        return slow * 0.18;
-      }
-      const phase = v.by * 0.07 - t * 0.0028;
-      return Math.max(0, Math.sin(phase));
-    }
-    default:
-      return 0;
-  }
-}
-
 function PolygonField({ hostRef, mode, delay = 0 }) {
   const canvasRef = useRef(null);
 
@@ -243,203 +190,68 @@ function PolygonField({ hostRef, mode, delay = 0 }) {
     const canvas = canvasRef.current;
     const host = hostRef.current;
     if (!canvas || !host) return;
-    const ctx = canvas.getContext('2d');
+    if (typeof canvas.transferControlToOffscreen !== 'function') return;
 
-    const state = {
-      w: 0,
-      h: 0,
-      dpr: Math.min(window.devicePixelRatio || 1, 2),
-      verts: [],
-      cols: 0,
-      rows: 0,
-      triangles: [],
-      mouse: { x: -9999, y: -9999, active: false, vx: 0, vy: 0, lastX: 0, lastY: 0 },
-      hoverT: 0,
-      raf: 0,
-      running: false,
+    if (canvas._pfTeardown) {
+      clearTimeout(canvas._pfTeardown);
+      canvas._pfTeardown = null;
+    }
+
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+
+    let worker = canvas._pfWorker;
+    if (!worker) {
+      const rect = host.getBoundingClientRect();
+      canvas.style.width = rect.width + 'px';
+      canvas.style.height = rect.height + 'px';
+      const offscreen = canvas.transferControlToOffscreen();
+      worker = new Worker(
+        new URL('./polygonFieldWorker.js', import.meta.url),
+        { type: 'module' },
+      );
+      canvas._pfWorker = worker;
+      worker.postMessage(
+        { type: 'init', canvas: offscreen, mode, w: rect.width, h: rect.height, dpr },
+        [offscreen],
+      );
+    }
+
+    const sendResize = () => {
+      const rect = host.getBoundingClientRect();
+      canvas.style.width = rect.width + 'px';
+      canvas.style.height = rect.height + 'px';
+      worker.postMessage({ type: 'resize', w: rect.width, h: rect.height, dpr });
     };
 
-    function rebuild() {
-      const rect = host.getBoundingClientRect();
-      state.w = rect.width;
-      state.h = rect.height;
-      canvas.width = Math.floor(state.w * state.dpr);
-      canvas.height = Math.floor(state.h * state.dpr);
-      canvas.style.width = state.w + 'px';
-      canvas.style.height = state.h + 'px';
-      ctx.setTransform(state.dpr, 0, 0, state.dpr, 0, 0);
-
-      const step = 22;
-      const cols = Math.ceil(state.w / step) + 1;
-      const rows = Math.ceil(state.h / step) + 1;
-      state.cols = cols;
-      state.rows = rows;
-
-      const verts = [];
-      for (let j = 0; j < rows; j++) {
-        for (let i = 0; i < cols; i++) {
-          const jitterX = (i === 0 || i === cols - 1) ? 0 : (Math.random() - 0.5) * step * 0.35;
-          const jitterY = (j === 0 || j === rows - 1) ? 0 : (Math.random() - 0.5) * step * 0.35;
-          const bx = i * step - step / 2 + jitterX;
-          const by = j * step - step / 2 + jitterY;
-          verts.push({
-            bx,
-            by,
-            x: bx,
-            y: by,
-            vx: 0,
-            vy: 0,
-            seed: Math.random() * Math.PI * 2,
-          });
-        }
-      }
-      state.verts = verts;
-
-      const tris = [];
-      for (let j = 0; j < rows - 1; j++) {
-        for (let i = 0; i < cols - 1; i++) {
-          const a = j * cols + i;
-          const b = a + 1;
-          const c = a + cols;
-          const d = c + 1;
-          if ((i + j) % 2 === 0) {
-            tris.push([a, b, d]);
-            tris.push([a, d, c]);
-          } else {
-            tris.push([a, b, c]);
-            tris.push([b, d, c]);
-          }
-        }
-      }
-      state.triangles = tris;
-    }
-
-    function loop(t) {
-      state.hoverT += state.mouse.active ? 0.08 : -0.05;
-      if (state.hoverT < 0) state.hoverT = 0;
-      if (state.hoverT > 1) state.hoverT = 1;
-
-      ctx.clearRect(0, 0, state.w, state.h);
-
-      const mx = state.mouse.x;
-      const my = state.mouse.y;
-      const speed = Math.min(
-        Math.hypot(state.mouse.vx, state.mouse.vy) * 0.1,
-        1
-      );
-      const R = 420;
-
-      const DEAD = 22;
-      for (const v of state.verts) {
-        const dx = mx - v.bx;
-        const dy = my - v.by;
-        const d = Math.hypot(dx, dy);
-
-        let tx = v.bx;
-        let ty = v.by;
-        if (state.mouse.active && d < R) {
-          const far = 1 - d / R;
-          const nearMask = Math.min(d / DEAD, 1);
-          const nearEase = nearMask * nearMask * (3 - 2 * nearMask);
-          const strength = far * nearEase * 6 * (0.7 + speed * 0.5);
-          const dEff = Math.max(d, 1);
-          tx = v.bx - (dx / dEff) * strength;
-          ty = v.by - (dy / dEff) * strength;
-        }
-
-        v.x += (tx - v.x) * 0.12;
-        v.y += (ty - v.y) * 0.12;
-      }
-
-      const prox = new Array(state.verts.length);
-      const amb = new Array(state.verts.length);
-      for (let k = 0; k < state.verts.length; k++) {
-        const v = state.verts[k];
-        const dx = mx - v.x;
-        const dy = my - v.y;
-        const d = Math.hypot(dx, dy);
-        prox[k] = d < 520 ? 1 - d / 520 : 0;
-        amb[k] = ambientValue(mode, v, t, state.w, state.h);
-      }
-
-      for (const tri of state.triangles) {
-        const v0 = state.verts[tri[0]];
-        const v1 = state.verts[tri[1]];
-        const v2 = state.verts[tri[2]];
-        const avgProx = (prox[tri[0]] + prox[tri[1]] + prox[tri[2]]) / 3;
-        const avgAmb = (amb[tri[0]] + amb[tri[1]] + amb[tri[2]]) / 3;
-        const p = Math.max(
-          Math.pow(avgProx, 1.5) * state.hoverT * 0.55,
-          avgAmb * 0.5,
-        );
-
-        const r = Math.floor(14 + p * 100);
-        const g = Math.floor(6 + p * 45);
-        const b = Math.floor(26 + p * 130);
-        const a = 0.04 + p * 0.55;
-
-        const color = `rgba(${r}, ${g}, ${b}, ${a})`;
-        ctx.fillStyle = color;
-        ctx.strokeStyle = color;
-        ctx.lineWidth = 1;
-        ctx.lineJoin = 'round';
-        ctx.beginPath();
-        ctx.moveTo(v0.x, v0.y);
-        ctx.lineTo(v1.x, v1.y);
-        ctx.lineTo(v2.x, v2.y);
-        ctx.closePath();
-        ctx.fill();
-        ctx.stroke();
-      }
-
-      state.raf = requestAnimationFrame(loop);
-    }
-
-    function start() {
-      if (!state.raf) {
-        state.raf = requestAnimationFrame(loop);
-      }
-    }
-
+    let lastX = 0;
+    let lastY = 0;
     const onMove = (e) => {
       const r = host.getBoundingClientRect();
       const x = e.clientX - r.left;
       const y = e.clientY - r.top;
-      state.mouse.vx = x - state.mouse.lastX;
-      state.mouse.vy = y - state.mouse.lastY;
-      state.mouse.lastX = x;
-      state.mouse.lastY = y;
-      state.mouse.x = x;
-      state.mouse.y = y;
-      state.mouse.active = true;
-      state.running = true;
-      start();
+      const vx = x - lastX;
+      const vy = y - lastY;
+      lastX = x;
+      lastY = y;
+      worker.postMessage({ type: 'mouse', x, y, vx, vy, active: true });
     };
     const onLeave = () => {
-      state.mouse.active = false;
-      state.running = false;
-      state.mouse.x = -9999;
-      state.mouse.y = -9999;
-      start();
-    };
-    const onResize = () => {
-      rebuild();
-      start();
+      worker.postMessage({ type: 'mouse', x: -9999, y: -9999, vx: 0, vy: 0, active: false });
     };
 
-    rebuild();
     host.addEventListener('mousemove', onMove);
     host.addEventListener('mouseleave', onLeave);
-    window.addEventListener('resize', onResize);
+    window.addEventListener('resize', sendResize);
 
     let kickoffTimeout = 0;
-    let kickedOff = false;
+    let kickedOff = canvas._pfStarted;
     const kickoff = () => {
       if (kickedOff) return;
       kickedOff = true;
       kickoffTimeout = window.setTimeout(() => {
         canvas.style.opacity = '1';
-        start();
+        canvas._pfStarted = true;
+        worker.postMessage({ type: 'start' });
       }, (delay + 0.9) * 1000);
     };
 
@@ -461,8 +273,14 @@ function PolygonField({ hostRef, mode, delay = 0 }) {
       if (kickoffTimeout) clearTimeout(kickoffTimeout);
       host.removeEventListener('mousemove', onMove);
       host.removeEventListener('mouseleave', onLeave);
-      window.removeEventListener('resize', onResize);
-      if (state.raf) cancelAnimationFrame(state.raf);
+      window.removeEventListener('resize', sendResize);
+      canvas._pfTeardown = setTimeout(() => {
+        worker.postMessage({ type: 'destroy' });
+        worker.terminate();
+        delete canvas._pfWorker;
+        canvas._pfStarted = false;
+        canvas._pfTeardown = null;
+      }, 0);
     };
   }, [hostRef, mode, delay]);
 
