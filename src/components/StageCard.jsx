@@ -1,110 +1,155 @@
-import styled from "styled-components";
-import { motion } from "framer-motion";
+import styled from 'styled-components';
+import { motion } from 'framer-motion';
+import shape1 from '../assets/stages/stage-1.svg';
+import shape2 from '../assets/stages/stage-2.svg';
+import shape3 from '../assets/stages/stage-3.svg';
+import shape4 from '../assets/stages/stage-4.svg';
 
-const DESKTOP_WIDTH = 120;
-const DESKTOP_HEIGHT = 60;
-const MOBILE_WIDTH = 67;
-const MOBILE_HEIGHT = 60;
-
-const CARD_PARAMS = [
-  {
-    start: "#2a0340",
-    end: "#3d0558",
-    width: DESKTOP_WIDTH,
-    height: DESKTOP_HEIGHT,
-    mobileWidth: MOBILE_WIDTH,
-    mobileHeight: MOBILE_HEIGHT,
-  },
-  {
-    start: "#4e0c70",
-    end: "#6a1296",
-    width: DESKTOP_WIDTH - 3,
-    height: DESKTOP_HEIGHT,
-    mobileWidth: MOBILE_WIDTH - 3,
-    mobileHeight: MOBILE_HEIGHT,
-  },
-  {
-    start: "#761ca5",
-    end: "#9826d4",
-    width: DESKTOP_WIDTH,
-    height: DESKTOP_HEIGHT,
-    mobileWidth: MOBILE_WIDTH,
-    mobileHeight: MOBILE_HEIGHT,
-  },
+/* SVG viewBox dimensions + body geometry per shape.
+   `bodyStart` = x where the rounded rect (body) begins in the viewBox.
+   The notch (digit cutout) lives to the LEFT of bodyStart and overlaps
+   the previous panel on desktop. */
+const SHAPES = [
+  { url: shape1, viewW: 587.5, viewH: 457, bodyStart: 74.5, bodyW: 513 },
+  { url: shape2, viewW: 603,   viewH: 457, bodyStart: 89.5, bodyW: 513.5 },
+  { url: shape3, viewW: 597,   viewH: 457, bodyStart: 83.5, bodyW: 513 },
+  { url: shape4, viewW: 435,   viewH: 457, bodyStart: 98.5, bodyW: 336 },
 ];
-
 
 const Wrap = styled(motion.div)`
   position: relative;
-  flex: 1;
-  display: flex;
-  align-items: stretch;
+  flex: 0 0 auto;
+  width: calc(var(--card-h) * var(--ratio, 1));
+  height: var(--card-h);
+  filter:
+    drop-shadow(0px 18px 40px rgba(0, 0, 0, 0.55))
+    drop-shadow(0px 4px 10px rgba(0, 0, 0, 0.5));
+  transition: filter 0.35s ease, z-index 0s linear 0s;
+  cursor: pointer;
+  overflow: visible;
 
-  filter: drop-shadow(0px 10px 20px rgba(0, 0, 0, 0.5));
+  &:hover {
+    filter:
+      drop-shadow(0px 28px 60px rgba(0, 0, 0, 0.75))
+      drop-shadow(0px 8px 18px rgba(0, 0, 0, 0.6))
+      drop-shadow(0 0 26px rgba(199, 125, 255, 0.45))
+      brightness(1.12);
+    z-index: 10 !important;
+  }
+
+  /* On hover, smoothly shift content toward card center + scale up.
+     Padding stays constant (no layout reflow / text rewrap) — pure
+     compositor-friendly transform animation. */
+  &:hover > div {
+    transform: translate3d(var(--shift, 20%), 0, 0) scale(var(--scale, 1.12));
+  }
+  /* Line above each item shortens to stay visually balanced with the
+     scaled-up text. */
+  &:hover > div > p::before {
+    transform: scaleX(0.75);
+  }
+
+  @media (max-width: ${({ theme }) => theme.breakpoints.desktop}) {
+    width: 100%;
+    height: auto;
+    /* On mobile/tablet each card sits in its own grid cell — render
+       full panel (with its digit inside), no overflow notch trick. */
+    aspect-ratio: var(--ratio-full, 1);
+    filter: drop-shadow(0px 10px 24px rgba(0, 0, 0, 0.5));
+    overflow: hidden;
+
+    &:hover > div {
+      transform: translate3d(0, 0, 0) scale(1.06);
+    }
+    &:hover > div > p::before {
+      transform: scaleX(0.85);
+    }
+  }
 `;
 
-const SvgContent = styled.div`
+const Bg = styled.img`
   position: absolute;
   top: 0;
-  left: 0;
-  width: 100%;
   height: 100%;
-  z-index: 1;
+  display: block;
+  pointer-events: none;
+  width: var(--img-w, 100%);
+  left: var(--img-l, 0%);
+
+  @media (max-width: ${({ theme }) => theme.breakpoints.desktop}) {
+    width: 100%;
+    left: 0;
+  }
 `;
 
-const ContentDiv = styled.div`
-  position: relative;
-  z-index: 1;
-  padding: 28px 140px 28px 100px;
-  height: 100%;
+const Content = styled.div`
+  position: absolute;
+  inset: 0;
   display: flex;
   flex-direction: column;
   justify-content: center;
-  line-height: 1.55;
+  gap: 16px;
+  padding-top: 28px;
+  padding-bottom: 28px;
+  padding-left: var(--pad-l, 10%);
+  padding-right: var(--pad-r, 8%);
+  transform-origin: left center;
+  transition: transform 0.4s ease;
+  will-change: transform;
 
-    @media (max-width: 1034px) {
-     padding: 28px 34px 28px 100px;
-  line-height: 1;
-     
-    }
+  @media (max-width: ${({ theme }) => theme.breakpoints.desktop}) {
+    padding: 24px 8% 24px 22%;
+    gap: 12px;
+  }
 
-      @media (max-width: 528px) {
-     padding: 28px 34px 28px 60px;
-
-      }
-
+  @media (max-width: ${({ theme }) => theme.breakpoints.tablet}) {
+    padding: 20px 6% 20px 24%;
+  }
 `;
 
-const ItemList = styled.ul`
-  display: flex;
-  flex-direction: column;
-  gap: 9px;
-`;
-
-const Item = styled(motion.li)`
-  font-size: 13px;
-  color: rgba(220, 215, 230, 0.85);
-  padding-left: 14px;
+const Item = styled(motion.p)`
+  font-size: 14px;
+  line-height: 1.45;
+  color: rgba(255, 255, 255, 0.92);
+  margin: 0;
+  padding-top: 18px;
   position: relative;
-  
+
   &::before {
-    content: "";
+    content: '';
     position: absolute;
+    top: 0;
     left: 0;
-    top: 8px;
-    width: 4px;
-    height: 4px;
-    border-radius: 50%;
-    background: rgba(155, 93, 229, 0.65);
+    width: 100%;
+    max-width: 220px;
+    height: 2px;
+    background: rgba(255, 255, 255, 0.25);
+    border-radius: 1px;
+    transform-origin: left center;
+    transition: transform 0.4s ease;
+  }
+
+  strong {
+    font-weight: 700;
+    color: #fff;
+  }
+
+  @media (max-width: ${({ theme }) => theme.breakpoints.tablet}) {
+    font-size: 12.5px;
+    padding-top: 14px;
+
+    &::before {
+      max-width: 120px;
+    }
   }
 `;
 
 const wrapV = (i) => ({
-  hidden: { opacity: 0, x: 40 },
+  hidden: { opacity: 0, x: 30 },
   visible: {
     opacity: 1,
     x: 0,
-    transition: { duration: 0.6, delay: i * 0.15, ease: [0.22, 1, 0.36, 1] },
+    transition: { duration: 0.6, delay: i * 0.12, ease: [0.22, 1, 0.36, 1] },
   },
 });
 
@@ -117,214 +162,80 @@ const itemV = {
   }),
 };
 
-const SVG_VIEWBOX_WIDTH = 80;
-const SVG_VIEWBOX_HEIGHT = 53.912868;
-
-function Shape3({ gradientId, startColor, endColor, svgWidth, svgHeight, mobileWidth, mobileHeight }) {
-  return (
-    <SvgWrapper $svgWidth={svgWidth} $svgHeight={svgHeight} $mobileWidth={mobileWidth} $mobileHeight={mobileHeight}>
-      <svg
-        viewBox={`0 0 ${SVG_VIEWBOX_WIDTH} ${SVG_VIEWBOX_HEIGHT}`}
-        preserveAspectRatio="none"
-        version="1.1"
-        xmlSpace="preserve"
-        xmlns="http://www.w3.org/2000/svg"
-        xmlnsXlink="http://www.w3.org/1999/xlink"
-      >
-        <defs>
-          <linearGradient
-            id={gradientId}
-            x1="0"
-            y1="0"
-            x2={SVG_VIEWBOX_WIDTH}
-            y2="0"
-            gradientUnits="userSpaceOnUse"
-          >
-            <stop
-              style={{ stopColor: startColor, stopOpacity: 1 }}
-              offset="0"
-            />
-            <stop
-              style={{ stopColor: endColor, stopOpacity: 1 }}
-              offset="1"
-            />
-          </linearGradient>
-        </defs>
-        <path
-          style={{
-            fill: `url(#${gradientId})`,
-            fillOpacity: 1,
-            stroke: "none",
-          }}
-          d="M 11,5.8 V 3.4 C 11,1.6 12.4,0 14.3,0 h 53 c 1.8,0 3.3,1.6 3.3,3.4 v 47.2 c 0,1.8 -1.5,3.3 -3.3,3.3 l -53.1,-0.1 c -0.8,0 -3,-0.1 -3,-3.1 l -0.03,-3.5 c 0,0 -2.2,0.2 -4.4,-0.4 c -2.1,-0.6 -4.3,-2 -5,-3.9 c -1.5,-3.7 -1.4,-8.3 -1.4,-8.3 l 5.8,0 c 0.2,3.6 0.2,4.8 1.6,6.1 c 0.6,0.6 3.2,1.5 4.8,-1 c 0.6,-1 0.8,-2.4 0.9,-3.2 c 0.2,-1.8 -0.1,-4.2 -1.3,-5.7 c -0.4,-0.5 -1.7,-0.7 -1.7,-0.7 l -3.3,0.2 l -0.02,-6.1 l 3.5,0 c 2.6,-1.1 3.6,-7.9 -0.1,-9.6 c -3.5,0.6 -3.5,2.5 -4,6 l -5.8,0 c 0.3,-2.6 0.4,-3.2 1.2,-5.8 c 0.7,-2.6 3.2,-5.1 4.8,-5.6 c 0.7,-0.3 1.6,-0.4 4.3,-0.3 c 0.1,0 0.02,-3 0.02,-3 z"
-        />
-      </svg>
-    </SvgWrapper>
-  );
-}
-
-const SvgWrapper = styled.div`
-  width: ${({ $svgWidth }) => $svgWidth}mm;
-  height: ${({ $svgHeight }) => $svgHeight}mm;
-
-  @media (max-width: 528px) {
-    width: ${({ $mobileWidth }) => $mobileWidth || $svgWidth}mm;
-    height: ${({ $mobileHeight }) => $mobileHeight || $svgHeight}mm;
-  }
-
-  svg {
-    width: 100%;
-    height: 100%;
-    display: block;
-  }
-`;
-
-function Shape1({ gradientId, startColor, endColor, svgWidth, svgHeight, mobileWidth, mobileHeight }) {
-  return (
-    <SvgWrapper $svgWidth={svgWidth} $svgHeight={svgHeight} $mobileWidth={mobileWidth} $mobileHeight={mobileHeight}>
-      <svg
-        viewBox={`0 0 ${SVG_VIEWBOX_WIDTH} ${SVG_VIEWBOX_HEIGHT}`}
-        preserveAspectRatio="none"
-        version="1.1"
-        xmlSpace="preserve"
-        xmlns="http://www.w3.org/2000/svg"
-        xmlnsXlink="http://www.w3.org/1999/xlink"
-      >
-        <defs>
-          <linearGradient
-            id={gradientId}
-            x1="0"
-            y1="0"
-            x2={SVG_VIEWBOX_WIDTH}
-            y2="0"
-            gradientUnits="userSpaceOnUse"
-          >
-            <stop
-              style={{ stopColor: startColor, stopOpacity: 1 }}
-              offset="0"
-            />
-            <stop
-              style={{ stopColor: endColor, stopOpacity: 1 }}
-              offset="1"
-            />
-          </linearGradient>
-        </defs>
-        <path
-          style={{
-            fill: `url(#${gradientId})`,
-            fillOpacity: 1,
-            stroke: "none",
-          }}
-          d="M 18,5.8 V 3.4 C 18,1.6 19.4,0 21.3,0 h 50 c 1.8,0 3.3,1.6 3.3,3.4 v 47.2 c 0,1.8 -1.5,3.3 -3.3,3.3 l -50.1,-0.1 c -0.8,0 -3,-0.1 -3,-3.1 c 0,-0.9 -0.03,-3.5 -0.03,-3.5 l -3.2,0.1 l 0.3,-28.5 l -4.7,2.9 l -0.1,-7.2 l 7.5,-5.6 c 0,0 0.02,-3 0.02,-3 z"
-        />
-      </svg>
-    </SvgWrapper>
-  );
-}
-
-function Shape2({ gradientId, startColor, endColor, svgWidth, svgHeight, mobileWidth, mobileHeight }) {
-  return (
-    <SvgWrapper $svgWidth={svgWidth} $svgHeight={svgHeight} $mobileWidth={mobileWidth} $mobileHeight={mobileHeight}>
-      <svg
-        viewBox={`0 0 ${SVG_VIEWBOX_WIDTH} ${SVG_VIEWBOX_HEIGHT}`}
-        preserveAspectRatio="none"
-        version="1.1"
-        xmlSpace="preserve"
-        xmlns="http://www.w3.org/2000/svg"
-        xmlnsXlink="http://www.w3.org/1999/xlink"
-      >
-        <defs>
-          <linearGradient
-            id={gradientId}
-            x1="0"
-            y1="0"
-            x2={SVG_VIEWBOX_WIDTH}
-            y2="0"
-            gradientUnits="userSpaceOnUse"
-          >
-            <stop
-              style={{ stopColor: startColor, stopOpacity: 1 }}
-              offset="0"
-            />
-            <stop style={{ stopColor: endColor, stopOpacity: 1 }} offset="1" />
-          </linearGradient>
-        </defs>
-        <path
-          style={{ fill: `url(#${gradientId})`, fillOpacity: 1 }}
-          d="M 14,0.1 C 12.1,0.1 10.7,1.6 10.7,3.4 v 2.4 c 0,0 0.04,3 -0.02,3 c -2.7,-0.1 -3.6,0 -4.3,0.3 c -1.6,0.6 -4.1,3 -4.8,5.6 c -0.7,2.6 -0.1,4 0.4,6.6 l 5.8,-0.1 c -0.2,-3.6 -0.2,-6.2 3.2,-6.8 c 6.3,0.8 0.3,13.1 -4.6,20 l -4.8,6.9 l -0.1,5.4 l 5.9,0 l 4.6,-0.1 l -0.2,4.1 c 0,3 2.2,3.1 3,3.1 l 53.1,0.1 c 1.8,0 3.3,-1.5 3.3,-3.3 V 3.4 c 0,-1.8 -1.5,-3.3 -3.3,-3.3 L 14,0.1 z M 11,35.7 l -0.02,5.1 l -3.5,-0.04 z"
-        />
-      </svg>
-    </SvgWrapper>
-  );
-}
-
-const SHAPES = [Shape1, Shape2, Shape3];
-
-const CardWrap = styled.div`
-  position: relative;
-  width: ${({ $svgWidth }) => $svgWidth}mm;
-  height: ${({ $svgHeight }) => $svgHeight}mm;
-
-  @media (max-width: 528px) {
-    width: ${({ $mobileWidth }) => $mobileWidth || $svgWidth}mm;
-    height: ${({ $mobileHeight }) => $mobileHeight || $svgHeight}mm;
-  }
-`;
-
-function CardSvg({ index, startColor, endColor, svgWidth, svgHeight, mobileWidth, mobileHeight, children }) {
-  const ShapeComponent = SHAPES[index] ?? SHAPES[0];
-  const gradientId = `gradient-${index}`;
-
-  return (
-    <CardWrap $svgWidth={svgWidth} $svgHeight={svgHeight} $mobileWidth={mobileWidth} $mobileHeight={mobileHeight}>
-      <ShapeComponent
-        gradientId={gradientId}
-        startColor={startColor}
-        endColor={endColor}
-        svgWidth={svgWidth}
-        svgHeight={svgHeight}
-        mobileWidth={mobileWidth}
-        mobileHeight={mobileHeight}
-      />
-      <SvgContent>{children}</SvgContent>
-    </CardWrap>
-  );
-}
-
 export default function StageCard({ items, index }) {
-  const { start, end, width, height, mobileWidth, mobileHeight } = CARD_PARAMS[index] ?? CARD_PARAMS[0];
+  const shape = SHAPES[index] ?? SHAPES[0];
+  const isFirst = index === 0;
+
+  // Desktop: first panel uses full width (notch visible against page bg).
+  // Other panels use body-only width; img sticks LEFT into previous panel.
+  const ratio = isFirst
+    ? shape.viewW / shape.viewH
+    : shape.bodyW / shape.viewH;
+
+  const imgWidthPct = isFirst
+    ? 100
+    : (shape.viewW / shape.bodyW) * 100;
+
+  const imgLeftPct = isFirst
+    ? 0
+    : -(shape.bodyStart / shape.bodyW) * 100;
+
+  // Account for the next panel's notch+overlap covering the right side.
+  // Panel 4 is last — full body usable.
+  const PAD_L = ['13%', '0%', '0%', '0'];
+  const PAD_R = ['52%', '62%', '62%', '34%'];
+  // On hover the Content is translated rightward by --shift to center the
+  // text block on the card. Each value = 50% - (pad-l + text-w/2) of Wrap.
+  // text-w = 100% - pad-l - pad-r.
+  const SHIFT = ['19.5%', '18%', '18%', '0%'];
+  const SCALE = [1.12, 1.12, 1.12, 1.12];
 
   return (
     <Wrap
+      style={{
+        '--ratio': ratio,
+        '--ratio-full': shape.viewW / shape.viewH,
+        '--pad-l': PAD_L[index] ?? '10%',
+        '--pad-r': PAD_R[index] ?? '8%',
+        '--shift': SHIFT[index] ?? '0%',
+        '--scale': SCALE[index] ?? 1.12,
+        zIndex: index + 1,
+      }}
       variants={wrapV(index)}
       initial="hidden"
       whileInView="visible"
+      whileHover={{ y: -12, scale: 1.025 }}
+      transition={{ y: { duration: 0.35, ease: [0.22, 1, 0.36, 1] }, scale: { duration: 0.35, ease: [0.22, 1, 0.36, 1] } }}
     >
-      <CardSvg
-        index={index}
-        startColor={start}
-        endColor={end}
-        svgWidth={width}
-        svgHeight={height}
-        mobileWidth={mobileWidth}
-        mobileHeight={mobileHeight}
-      >
-        <ContentDiv>
-          <ItemList>
-            {items.map((item, j) => (
-              <Item
-                key={j}
-                custom={j}
-                variants={itemV}
-                initial="hidden"
-                whileInView="visible"
-              >
-                {item}
-              </Item>
-            ))}
-          </ItemList>
-        </ContentDiv>
-      </CardSvg>
+      <Bg
+        src={shape.url}
+        style={{
+          '--img-w': `${imgWidthPct}%`,
+          '--img-l': `${imgLeftPct}%`,
+        }}
+        alt=""
+        draggable={false}
+      />
+      <Content>
+        {items.map((item, j) => (
+          <Item
+            key={j}
+            custom={j}
+            variants={itemV}
+            initial="hidden"
+            whileInView="visible"
+          >
+            {typeof item === 'string' ? (
+              item
+            ) : (
+              <>
+                <strong>{item.bold}</strong>
+                {item.rest}
+              </>
+            )}
+          </Item>
+        ))}
+      </Content>
     </Wrap>
   );
 }

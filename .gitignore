@@ -22,3 +22,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Local screenshots / playwright cache
+.playwright-mcp/
+stages-*.png

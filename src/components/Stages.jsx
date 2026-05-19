@@ -1,29 +1,32 @@
-import styled from "styled-components";
-import StageCard from "./StageCard";
+import styled from 'styled-components';
+import StageCard from './StageCard';
 
 const stages = [
   {
-    num: "1",
     items: [
-      "Development of a mini-application TG, a website and a website for developers",
-      "INDS Wallet prototype (desktop)",
+      {
+        bold: 'Development',
+        rest: ' of a mini-application TG, a website and a website for developers.',
+      },
+      { bold: 'INDS Wallet', rest: ' prototype (desktop)' },
     ],
   },
   {
-    num: "2",
     items: [
-      "Release of the mobile version of the wallet",
-      "Implementation of smart contracts",
-      "Optional external integrations via API",
-      "Bridges to featured dApps",
+      { bold: 'Development', rest: ' of blockchain architecture' },
+      { bold: 'Testnet', rest: ' and demonstration of p2p functions' },
     ],
   },
   {
-    num: "3",
     items: [
-      "Development of blockchain architecture",
-      "Testnet and demonstration of p2p functions",
-      "Implementation of a built-in exchanger",
+      { bold: 'Implementation', rest: ' of a built-in exchanger' },
+      { bold: 'Release', rest: ' of the mobile version of the wallet' },
+    ],
+  },
+  {
+    items: [
+      { bold: 'Implementation', rest: ' of smart contracts' },
+      { bold: 'Optional', rest: ' — external integrations via API' },
     ],
   },
 ];
@@ -40,16 +43,16 @@ const Section = styled.section`
 `;
 
 const Inner = styled.div`
-  max-width: 980px;
+  max-width: 1280px;
   margin: 0 auto;
 `;
 
 const SectionHeader = styled.div`
-  display: flex;
-  align-items: baseline;
-  gap: 16px;
   margin-bottom: 56px;
-  flex-wrap: wrap;
+
+  @media (max-width: ${({ theme }) => theme.breakpoints.tablet}) {
+    margin-bottom: 40px;
+  }
 `;
 
 const Title = styled.h2`
@@ -61,39 +64,38 @@ const Title = styled.h2`
   color: ${({ theme }) => theme.colors.white};
 `;
 
+const Note = styled.p`
+  margin-top: 14px;
+  max-width: 540px;
+  font-size: 13px;
+  line-height: 1.55;
+  color: rgba(180, 180, 195, 0.65);
+`;
+
+/* Sum of SHAPES ratios in StageCard ≈ 4.266 — height derived from
+   viewport width so cards together fit horizontally without overflow. */
 const Strip = styled.div`
+  --card-h: clamp(240px, 22vw, 380px);
+
   display: flex;
   flex-direction: row;
   justify-content: center;
-  max-width: 1280px;
-  margin: 0 auto;
+  align-items: flex-start;
+  width: 100%;
 
   & > * + * {
-    margin-left: -190px;
+    margin-left: calc(-0.45 * var(--card-h));
   }
 
-  @media (max-width: 1034px) {
-    flex-direction: column;
-    width: 100%;
-    max-width: none;
-    
-    & > * {
-      flex: 0 0 auto;
-    }
-    
+  @media (max-width: ${({ theme }) => theme.breakpoints.desktop}) {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    align-items: stretch;
+    padding: 0 16px;
+
     & > * + * {
-      margin-top: -48px;
       margin-left: 0;
-    }
-    
-    & > *:first-child {
-      align-self: flex-start;
-    }
-    & > *:nth-child(2) {
-      align-self: center;
-    }
-    & > *:last-child {
-      align-self: flex-end;
     }
   }
 `;
@@ -104,14 +106,18 @@ export default function Stages() {
       <Inner>
         <SectionHeader>
           <Title>Stages of development</Title>
+          <Note>
+            External integrations — possible SDKs for trusted apps, or bridges to
+            featured dApps in the process under development.
+          </Note>
         </SectionHeader>
-
-        <Strip>
-          {stages.map((stage, i) => (
-            <StageCard key={stage.num} {...stage} index={i} />
-          ))}
-        </Strip>
       </Inner>
+
+      <Strip>
+        {stages.map((stage, i) => (
+          <StageCard key={i} {...stage} index={i} />
+        ))}
+      </Strip>
     </Section>
   );
 }
