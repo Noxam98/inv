@@ -65,14 +65,6 @@ const Title = styled.h2`
   color: ${({ theme }) => theme.colors.white};
 `;
 
-const Note = styled.p`
-  margin-top: 14px;
-  max-width: 540px;
-  font-size: 13px;
-  line-height: 1.55;
-  color: rgba(180, 180, 195, 0.65);
-`;
-
 /* Sum of SHAPES ratios in StageCard ≈ 4.266 — height derived from
    viewport width so cards together fit horizontally without overflow. */
 const Strip = styled.div`
@@ -109,10 +101,6 @@ export default function Stages() {
       <Inner>
         <SectionHeader>
           <Title>Stages of development</Title>
-          <Note>
-            External integrations — possible SDKs for trusted apps, or bridges to
-            featured dApps in the process under development.
-          </Note>
         </SectionHeader>
       </Inner>
 

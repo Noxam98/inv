@@ -37,7 +37,9 @@ const Wrap = styled(motion.div)`
   will-change: transform, opacity;
   
   transition: ${({ $entranceDone }) =>
-    $entranceDone ? 'filter 0.4s ease, opacity 0.4s ease' : 'none !important'};
+    $entranceDone
+      ? 'filter 0.5s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.5s cubic-bezier(0.22, 1, 0.36, 1)'
+      : 'none !important'};
   cursor: pointer;
   overflow: visible;
 
@@ -240,6 +242,10 @@ export default function StageCard({
       initial="hidden"
       whileInView="visible"
       viewport={{ once: true, amount: 0.15 }}
+      onAnimationComplete={(def) => {
+        if (def === 'visible') setEntranceDone(true);
+      }}
+      $entranceDone={entranceDone}
       whileHover={
         isDesktop
           ? { x: -16, y: -16, scale: 1.01 }
