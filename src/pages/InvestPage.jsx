@@ -1,6 +1,7 @@
 import styled from 'styled-components';
 import { motion } from 'framer-motion';
-import { AnimatedDiv, StaggerDiv, fadeUp, slideLeft, slideRight, staggerContainer, fadeIn } from '../components/AnimatedSection';
+import { AnimatedDiv } from '../components/AnimatedSection';
+import { fadeUp } from '../utils/animations';
 
 const SAFE_LOGO = 'https://cdn.prod.website-files.com/692480ace4527d1f718a15fa/69282444c1ad22c4373085d1_s%20donation%202.svg';
 

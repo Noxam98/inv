@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import styled from 'styled-components';
 import StageCard from './StageCard';
 
@@ -101,6 +102,8 @@ const Strip = styled.div`
 `;
 
 export default function Stages() {
+  const [hoveredIndex, setHoveredIndex] = useState(null);
+
   return (
     <Section>
       <Inner>
@@ -115,7 +118,15 @@ export default function Stages() {
 
       <Strip>
         {stages.map((stage, i) => (
-          <StageCard key={i} {...stage} index={i} />
+          <StageCard
+            key={i}
+            {...stage}
+            index={i}
+            isHovered={hoveredIndex === i}
+            hasAnyHovered={hoveredIndex !== null}
+            onHoverStart={() => setHoveredIndex(i)}
+            onHoverEnd={() => setHoveredIndex(null)}
+          />
         ))}
       </Strip>
     </Section>

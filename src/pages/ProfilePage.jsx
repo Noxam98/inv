@@ -1,5 +1,6 @@
 import styled from 'styled-components';
 import { motion } from 'framer-motion';
+import { useAuthStore } from '../store/authStore';
 
 const Page = styled.div`
   min-height: 100vh;
@@ -71,6 +72,13 @@ const LogoutBtn = styled(motion.button)`
 `;
 
 export default function ProfilePage() {
+  const session = useAuthStore((s) => s.session);
+  const signOut = useAuthStore((s) => s.signOut);
+
+  // Extract anonymous handle from the user's email if present
+  const email = session?.user?.email;
+  const userHandle = email ? email.split('@')[0] : 'anonymous';
+
   return (
     <Page>
       <Card
@@ -80,11 +88,12 @@ export default function ProfilePage() {
       >
         <Avatar>👤</Avatar>
         <IdLabel>Your ID</IdLabel>
-        <IdValue>...</IdValue>
-        <LogoutBtn whileTap={{ scale: 0.97 }}>
+        <IdValue>{userHandle}</IdValue>
+        <LogoutBtn whileTap={{ scale: 0.97 }} onClick={signOut}>
           Log Out
         </LogoutBtn>
       </Card>
     </Page>
   );
 }
+

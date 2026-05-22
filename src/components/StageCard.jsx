@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { motion } from 'framer-motion';
 import shape1 from '../assets/stages/stage-1.svg';
@@ -16,37 +17,41 @@ const SHAPES = [
   { url: shape4, viewW: 435,   viewH: 457, bodyStart: 98.5, bodyW: 336 },
 ];
 
+const BRIGHTNESS_LEVELS = [1.18, 1.12, 1.07, 1.03];
+
 const Wrap = styled(motion.div)`
   position: relative;
   flex: 0 0 auto;
   width: calc(var(--card-h) * var(--ratio, 1));
   height: var(--card-h);
-  filter:
-    drop-shadow(0px 18px 40px rgba(0, 0, 0, 0.55))
-    drop-shadow(0px 4px 10px rgba(0, 0, 0, 0.5));
-  transition: filter 0.35s ease, z-index 0s linear 0s;
+  
+  opacity: ${({ $hasAnyHovered, $isHovered }) => ($hasAnyHovered && !$isHovered ? 0.65 : 1)};
+  
+  filter: ${({ $hasAnyHovered, $isHovered, $index }) =>
+    $hasAnyHovered && !$isHovered
+      ? 'drop-shadow(6px 6px 0px rgba(90, 24, 154, 0.6)) brightness(0.75)'
+      : $isHovered
+      ? `drop-shadow(6px 6px 0px rgba(90, 24, 154, 0.9)) brightness(${BRIGHTNESS_LEVELS[$index] ?? 1.08})`
+      : 'drop-shadow(6px 6px 0px rgba(90, 24, 154, 0.9))'};
+      
+  will-change: transform, opacity;
+  
+  transition: ${({ $entranceDone }) =>
+    $entranceDone ? 'filter 0.4s ease, opacity 0.4s ease' : 'none !important'};
   cursor: pointer;
   overflow: visible;
 
   &:hover {
-    filter:
-      drop-shadow(0px 28px 60px rgba(0, 0, 0, 0.75))
-      drop-shadow(0px 8px 18px rgba(0, 0, 0, 0.6))
-      drop-shadow(0 0 26px rgba(199, 125, 255, 0.45))
-      brightness(1.12);
-    z-index: 10 !important;
+    filter: ${({ $index }) => `drop-shadow(6px 6px 0px rgba(90, 24, 154, 0.9)) brightness(${BRIGHTNESS_LEVELS[$index] ?? 1.08})`};
   }
 
-  /* On hover, smoothly shift content toward card center + scale up.
-     Padding stays constant (no layout reflow / text rewrap) — pure
-     compositor-friendly transform animation. */
+  /* On hover, scale content slightly without translating/centering */
   &:hover > div {
-    transform: translate3d(var(--shift, 20%), 0, 0) scale(var(--scale, 1.12));
+    transform: scale(1.12);
   }
-  /* Line above each item shortens to stay visually balanced with the
-     scaled-up text. */
+  /* Line above each item scales down slightly to stay balanced */
   &:hover > div > p::before {
-    transform: scaleX(0.75);
+    transform: scaleX(0.85);
   }
 
   @media (max-width: ${({ theme }) => theme.breakpoints.desktop}) {
@@ -55,14 +60,22 @@ const Wrap = styled(motion.div)`
     /* On mobile/tablet each card sits in its own grid cell — render
        full panel (with its digit inside), no overflow notch trick. */
     aspect-ratio: var(--ratio-full, 1);
-    filter: drop-shadow(0px 10px 24px rgba(0, 0, 0, 0.5));
+    
+    filter: ${({ $hasAnyHovered, $isHovered, $index }) =>
+      $hasAnyHovered && !$isHovered
+        ? 'drop-shadow(4px 4px 0px rgba(90, 24, 154, 0.6)) brightness(0.75)'
+        : $isHovered
+        ? `drop-shadow(4px 4px 0px rgba(90, 24, 154, 0.9)) brightness(${BRIGHTNESS_LEVELS[$index] ?? 1.08})`
+        : 'drop-shadow(4px 4px 0px rgba(90, 24, 154, 0.9))'};
+        
     overflow: hidden;
-
+ 
     &:hover > div {
-      transform: translate3d(0, 0, 0) scale(1.06);
+      transform: scale(1.08);
     }
-    &:hover > div > p::before {
-      transform: scaleX(0.85);
+
+    &:hover {
+      filter: ${({ $index }) => `drop-shadow(4px 4px 0px rgba(90, 24, 154, 0.9)) brightness(${BRIGHTNESS_LEVELS[$index] ?? 1.08})`};
     }
   }
 `;
@@ -162,9 +175,33 @@ const itemV = {
   }),
 };
 
-export default function StageCard({ items, index }) {
+export default function StageCard({
+  items,
+  index,
+  isHovered,
+  hasAnyHovered,
+  onHoverStart,
+  onHoverEnd,
+}) {
   const shape = SHAPES[index] ?? SHAPES[0];
   const isFirst = index === 0;
+  const [entranceDone, setEntranceDone] = useState(false);
+
+  const [isDesktop, setIsDesktop] = useState(() =>
+    typeof window !== 'undefined' ? window.matchMedia('(min-width: 1025px)').matches : true
+  );
+
+  useEffect(() => {
+    const media = window.matchMedia('(min-width: 1025px)');
+    const listener = (e) => setIsDesktop(e.matches);
+    if (media.addEventListener) {
+      media.addEventListener('change', listener);
+      return () => media.removeEventListener('change', listener);
+    } else {
+      media.addListener(listener);
+      return () => media.removeListener(listener);
+    }
+  }, []);
 
   // Desktop: first panel uses full width (notch visible against page bg).
   // Other panels use body-only width; img sticks LEFT into previous panel.
@@ -184,28 +221,35 @@ export default function StageCard({ items, index }) {
   // Panel 4 is last — full body usable.
   const PAD_L = ['13%', '0%', '0%', '0'];
   const PAD_R = ['52%', '62%', '62%', '34%'];
-  // On hover the Content is translated rightward by --shift to center the
-  // text block on the card. Each value = 50% - (pad-l + text-w/2) of Wrap.
-  // text-w = 100% - pad-l - pad-r.
-  const SHIFT = ['19.5%', '18%', '18%', '0%'];
-  const SCALE = [1.12, 1.12, 1.12, 1.12];
 
   return (
     <Wrap
+      $index={index}
+      $isHovered={isHovered}
+      $hasAnyHovered={hasAnyHovered}
+      onHoverStart={onHoverStart}
+      onHoverEnd={onHoverEnd}
       style={{
         '--ratio': ratio,
         '--ratio-full': shape.viewW / shape.viewH,
         '--pad-l': PAD_L[index] ?? '10%',
         '--pad-r': PAD_R[index] ?? '8%',
-        '--shift': SHIFT[index] ?? '0%',
-        '--scale': SCALE[index] ?? 1.12,
         zIndex: index + 1,
       }}
       variants={wrapV(index)}
       initial="hidden"
       whileInView="visible"
-      whileHover={{ y: -12, scale: 1.025 }}
-      transition={{ y: { duration: 0.35, ease: [0.22, 1, 0.36, 1] }, scale: { duration: 0.35, ease: [0.22, 1, 0.36, 1] } }}
+      viewport={{ once: true, amount: 0.15 }}
+      whileHover={
+        isDesktop
+          ? { x: -16, y: -16, scale: 1.01 }
+          : { scale: 1.03 }
+      }
+      transition={{ 
+        x: { duration: 0.35, ease: [0.22, 1, 0.36, 1] },
+        y: { duration: 0.35, ease: [0.22, 1, 0.36, 1] },
+        scale: { duration: 0.35, ease: [0.22, 1, 0.36, 1] }
+      }}
     >
       <Bg
         src={shape.url}
@@ -222,8 +266,6 @@ export default function StageCard({ items, index }) {
             key={j}
             custom={j}
             variants={itemV}
-            initial="hidden"
-            whileInView="visible"
           >
             {typeof item === 'string' ? (
               item

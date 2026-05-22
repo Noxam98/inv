@@ -1,5 +1,3 @@
-/* eslint-disable no-restricted-globals */
-
 let canvas = null;
 let ctx = null;
 let particles = [];

@@ -1,4 +1,5 @@
 import styled from 'styled-components';
+import { Link } from 'react-router-dom';
 
 const EMAIL_ICON = 'https://cdn.prod.website-files.com/692480ace4527d1f718a15fa/692d70dbc4f27a13914a1135_Email%20logo%201%20(1).svg';
 const TG_ICON = 'https://cdn.prod.website-files.com/692480ace4527d1f718a15fa/692d70dd9016c01fabcdcdb7_telegram%20logo%201%20(1).svg';
@@ -78,7 +79,7 @@ const Nav = styled.nav`
   }
 `;
 
-const NavLink = styled.a`
+const NavLink = styled(Link)`
   font-family: ${({ theme }) => theme.fonts.heading};
   font-size: 12px;
   letter-spacing: 2px;
@@ -171,7 +172,7 @@ export default function Footer() {
           </Brand>
           <Nav>
             {navLinks.map(({ label, href }) => (
-              <NavLink key={label} href={href}>{label}</NavLink>
+              <NavLink key={label} to={href}>{label}</NavLink>
             ))}
           </Nav>
           <Social>

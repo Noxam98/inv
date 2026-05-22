@@ -1,6 +1,6 @@
 import styled from 'styled-components';
-import { motion } from 'framer-motion';
-import { AnimatedDiv, StaggerDiv, fadeUp, slideLeft, slideRight } from './AnimatedSection';
+import { AnimatedDiv } from './AnimatedSection';
+import { slideLeft, slideRight } from '../utils/animations';
 
 const Section = styled.section`
   padding: 100px 40px;

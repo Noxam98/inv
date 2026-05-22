@@ -1,6 +1,7 @@
 import styled from 'styled-components';
 import { motion } from 'framer-motion';
-import { AnimatedDiv, StaggerDiv, fadeUp, slideLeft, slideRight, staggerContainer, fadeIn } from '../components/AnimatedSection';
+import { AnimatedDiv } from '../components/AnimatedSection';
+import { fadeUp } from '../utils/animations';
 
 const Page = styled.div`
   min-height: 100vh;

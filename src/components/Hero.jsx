@@ -11,7 +11,7 @@ const Section = styled.section`
   display: flex;
   flex-direction: column;
   justify-content: center;
-  background: #000;
+  background: transparent;
   overflow: hidden;
   content-visibility: auto;
   contain-intrinsic-size: auto 100vh;

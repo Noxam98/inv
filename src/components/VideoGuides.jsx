@@ -1,8 +1,9 @@
-import styled, { keyframes } from 'styled-components';
+import styled from 'styled-components';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { FileVideo } from 'lucide-react';
-import { AnimatedDiv, fadeUp } from './AnimatedSection';
+import { AnimatedDiv } from './AnimatedSection';
+import { fadeUp } from '../utils/animations';
 import { videos } from '../data/videos';
 
 const Section = styled.section`
