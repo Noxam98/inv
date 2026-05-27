@@ -77,7 +77,8 @@ export default function App() {
 
   useEffect(() => {
     initAuth();
-  }, [initAuth]);
+  }, []);
+
 
   return (
     <BrowserRouter>

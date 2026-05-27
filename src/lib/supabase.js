@@ -3,17 +3,15 @@ import { createClient } from '@supabase/supabase-js';
 const url = import.meta.env.VITE_SUPABASE_URL;
 const key = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
-if (!url || !key) {
-  throw new Error('Supabase env vars missing. Check .env');
-}
-
-export const supabase = createClient(url, key, {
-  auth: {
-    persistSession: true,
-    autoRefreshToken: true,
-    detectSessionInUrl: false,
-  },
-});
+export const supabase = (url && key)
+  ? createClient(url, key, {
+      auth: {
+        persistSession: true,
+        autoRefreshToken: true,
+        detectSessionInUrl: false,
+      },
+    })
+  : null;
 
 const EMAIL_DOMAIN = 'anon.inds.local';
 
@@ -38,6 +36,9 @@ export function handleToEmail(handle) {
 }
 
 export async function signInWithCode(code) {
+  if (!supabase) {
+    return { error: { message: 'Database is not connected. Supabase environment variables are missing.' } };
+  }
   const parsed = parseCode(code);
   if (!parsed) {
     return { error: { message: 'Invalid code format' } };
@@ -50,6 +51,9 @@ export async function signInWithCode(code) {
 }
 
 export async function registerAnonymous() {
+  if (!supabase || !url || !key) {
+    return { error: { message: 'Database is not connected. Supabase environment variables are missing.' } };
+  }
   const fnUrl = `${url}/functions/v1/auth-register`;
   const res = await fetch(fnUrl, {
     method: 'POST',
@@ -69,3 +73,4 @@ export async function registerAnonymous() {
   }
   return { data: { handle: data.handle, password: data.password, code: formatCode(data.handle, data.password) } };
 }
+

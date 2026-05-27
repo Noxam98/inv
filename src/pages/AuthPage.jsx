@@ -722,7 +722,7 @@ export default function AuthPage() {
                 </AnimatePresence>
 
                 <SwitchRow>
-                  New here? <SwitchLink to="/signup">Generate a code</SwitchLink>
+                  New here? <SwitchLink to="/signup" state={location.state}>Generate a code</SwitchLink>
                 </SwitchRow>
               </Pane>
             </motion.div>
@@ -783,7 +783,7 @@ export default function AuthPage() {
                     </AnimatePresence>
 
                     <SwitchRow>
-                      Already have a code? <SwitchLink to="/signin">Sign in</SwitchLink>
+                      Already have a code? <SwitchLink to="/signin" state={location.state}>Sign in</SwitchLink>
                     </SwitchRow>
                   </>
                 ) : (

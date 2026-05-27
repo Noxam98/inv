@@ -1,6 +1,7 @@
 import styled from 'styled-components';
-import { NavLink as RouterNavLink, Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import useAppStore from '../store/useAppStore';
+import { useAuthStore, selectIsAuthed } from '../store/authStore';
 
 const LOGO_URL = '/logo.svg';
 
@@ -51,7 +52,7 @@ const NavLinks = styled.ul`
   }
 `;
 
-const NavLink = styled(RouterNavLink)`
+const NavLink = styled(Link)`
   font-family: ${({ theme }) => theme.fonts.heading};
   font-size: 13px;
   font-weight: 500;
@@ -127,7 +128,7 @@ const MobileMenu = styled.div`
   }
 `;
 
-const MobileNavLink = styled(RouterNavLink)`
+const MobileNavLink = styled(Link)`
   font-family: ${({ theme }) => theme.fonts.heading};
   font-size: 28px;
   font-weight: 500;
@@ -136,11 +137,32 @@ const MobileNavLink = styled(RouterNavLink)`
   text-transform: uppercase;
   transition: color 0.2s;
 
-  &:hover { color: ${({ theme }) => theme.colors.white}; }
+  &:hover, &.active { color: ${({ theme }) => theme.colors.white}; }
 `;
 
 export default function Navbar() {
   const { mobileMenuOpen, toggleMobileMenu, closeMobileMenu } = useAppStore();
+  const isAuthed = useAuthStore(selectIsAuthed);
+  const location = useLocation();
+
+  const getLinkProps = (href) => {
+    if ((href === '/chat' || href === '/profile') && !isAuthed) {
+      return {
+        to: '/signin',
+        state: { from: href }
+      };
+    }
+    return {
+      to: href
+    };
+  };
+
+  const isActivePath = (href) => {
+    if (href === '/') {
+      return location.pathname === '/';
+    }
+    return location.pathname.startsWith(href);
+  };
 
   return (
     <>
@@ -149,13 +171,20 @@ export default function Navbar() {
           <img src={LOGO_URL} alt="INDS Logo" />
         </LogoLink>
         <NavLinks>
-          {navLinks.map(({ label, href }) => (
-            <li key={label}>
-              <NavLink to={href} end={href === '/'}>
-                {label}
-              </NavLink>
-            </li>
-          ))}
+          {navLinks.map(({ label, href }) => {
+            const linkProps = getLinkProps(href);
+            const active = isActivePath(href);
+            return (
+              <li key={label}>
+                <NavLink
+                  {...linkProps}
+                  className={active ? 'active' : ''}
+                >
+                  {label}
+                </NavLink>
+              </li>
+            );
+          })}
         </NavLinks>
         <Hamburger $open={mobileMenuOpen} onClick={toggleMobileMenu} aria-label="Menu">
           <span /><span /><span />
@@ -163,12 +192,23 @@ export default function Navbar() {
       </Nav>
 
       <MobileMenu $open={mobileMenuOpen}>
-        {navLinks.map(({ label, href }) => (
-          <MobileNavLink key={label} to={href} end={href === '/'} onClick={closeMobileMenu}>
-            {label}
-          </MobileNavLink>
-        ))}
+        {navLinks.map(({ label, href }) => {
+          const linkProps = getLinkProps(href);
+          const active = isActivePath(href);
+          return (
+            <MobileNavLink
+              key={label}
+              {...linkProps}
+              className={active ? 'active' : ''}
+              onClick={closeMobileMenu}
+            >
+              {label}
+            </MobileNavLink>
+          );
+        })}
       </MobileMenu>
     </>
   );
 }
+
+
