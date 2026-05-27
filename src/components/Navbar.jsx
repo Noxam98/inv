@@ -81,6 +81,37 @@ const NavLink = styled(Link)`
   }
 `;
 
+const AuthButton = styled(Link)`
+  font-family: ${({ theme }) => theme.fonts.heading};
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: #fff;
+  background: linear-gradient(135deg, rgba(155, 93, 229, 0.4) 0%, rgba(88, 19, 133, 0.4) 100%);
+  border: 1px solid rgba(199, 125, 255, 0.35);
+  border-radius: 999px;
+  padding: 10px 22px;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 4px 15px rgba(155, 93, 229, 0.15);
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  &:hover {
+    border-color: ${({ theme }) => theme.colors.accentLight};
+    background: linear-gradient(135deg, rgba(155, 93, 229, 0.65) 0%, rgba(88, 19, 133, 0.65) 100%);
+    box-shadow: 0 6px 20px rgba(155, 93, 229, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.15) inset;
+    transform: translateY(-1px);
+  }
+
+  &:active {
+    transform: translateY(0);
+  }
+`;
+
 const Hamburger = styled.button`
   display: none;
   flex-direction: column;
@@ -164,6 +195,10 @@ export default function Navbar() {
     return location.pathname.startsWith(href);
   };
 
+  const filteredNavLinks = navLinks.filter(
+    (link) => link.href !== '/profile' || isAuthed
+  );
+
   return (
     <>
       <Nav>
@@ -171,7 +206,7 @@ export default function Navbar() {
           <img src={LOGO_URL} alt="INDS Logo" />
         </LogoLink>
         <NavLinks>
-          {navLinks.map(({ label, href }) => {
+          {filteredNavLinks.map(({ label, href }) => {
             const linkProps = getLinkProps(href);
             const active = isActivePath(href);
             return (
@@ -185,6 +220,11 @@ export default function Navbar() {
               </li>
             );
           })}
+          {!isAuthed && (
+            <li>
+              <AuthButton to="/signin">Sign In</AuthButton>
+            </li>
+          )}
         </NavLinks>
         <Hamburger $open={mobileMenuOpen} onClick={toggleMobileMenu} aria-label="Menu">
           <span /><span /><span />
@@ -192,7 +232,7 @@ export default function Navbar() {
       </Nav>
 
       <MobileMenu $open={mobileMenuOpen}>
-        {navLinks.map(({ label, href }) => {
+        {filteredNavLinks.map(({ label, href }) => {
           const linkProps = getLinkProps(href);
           const active = isActivePath(href);
           return (
@@ -206,9 +246,15 @@ export default function Navbar() {
             </MobileNavLink>
           );
         })}
+        {!isAuthed && (
+          <AuthButton to="/signin" onClick={closeMobileMenu} style={{ fontSize: '18px', padding: '14px 36px', marginTop: '16px' }}>
+            Sign In
+          </AuthButton>
+        )}
       </MobileMenu>
     </>
   );
 }
+
 
 

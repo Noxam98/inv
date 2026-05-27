@@ -81,17 +81,6 @@ const Crosshair = styled(motion.div)`
   }
 `;
 
-const DataBlock = styled(motion.div)`
-  position: absolute;
-  width: 14px;
-  height: 14px;
-  background: rgba(199, 125, 255, 0.5);
-  box-shadow: 0 0 10px rgba(199, 125, 255, 0.4);
-  top: 15%;
-  right: 15%;
-  will-change: transform;
-`;
-
 export default function ParallaxBackground() {
   const { scrollY } = useScroll();
 
@@ -102,7 +91,6 @@ export default function ParallaxBackground() {
   const circleY = useTransform(scrollY, [0, 5000], [0, -1000]);
   const circleRotate = useTransform(scrollY, [0, 5000], [0, -90]);
   const crossY = useTransform(scrollY, [0, 5000], [0, -400]);
-  const blockY = useTransform(scrollY, [0, 5000], [0, -1400]);
 
   return (
     <BackgroundWrapper>
@@ -136,14 +124,7 @@ export default function ParallaxBackground() {
           transition={{ duration: 4, repeat: Infinity, times: [0, 0.1, 0.2, 0.8, 0.9, 1] }}
         />
       </motion.div>
-
-      <motion.div style={{ position: 'absolute', top: '15%', right: '15%', y: blockY }}>
-        <DataBlock 
-          style={{ top: 0, right: 0 }}
-          animate={{ y: [0, -100, 0], opacity: [1, 0, 1], rotate: [0, 180, 360] }}
-          transition={{ duration: 3, repeat: Infinity, ease: 'linear' }}
-        />
-      </motion.div>
     </BackgroundWrapper>
   );
 }
+
