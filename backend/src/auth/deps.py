@@ -6,12 +6,6 @@ from ..config import settings
 from .service import User, lookup_session
 
 
-async def current_user(session: str | None = Cookie(default=None, alias=None)) -> User:
-    # Cookie alias is resolved at runtime from settings.session_cookie. We accept
-    # the raw cookie via a custom helper below to support a configurable name.
-    raise NotImplementedError  # replaced by current_user_factory at app init
-
-
 async def _resolve_user(token: str | None) -> User | None:
     if not token:
         return None
@@ -39,11 +33,12 @@ def make_optional_current_user_dep():
     return dep
 
 
-def make_admin_required_dep(current_dep):
-    async def dep(user: User = None):  # type: ignore[assignment]
-        # placeholder; real wiring done in routes via Depends(current_dep)
-        if user is None or not user.is_admin:
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin only")
-        return user
+def make_session_token_dep():
+    """Returns the raw cookie value (or None). Used by logout to invalidate the
+    server-side session row before clearing the cookie."""
+    cookie_name = settings.session_cookie
+
+    async def dep(request_cookie: str | None = Cookie(default=None, alias=cookie_name)) -> str | None:
+        return request_cookie
 
     return dep

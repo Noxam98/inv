@@ -98,27 +98,21 @@ async def send_message(
                 "id": msg["id"],
                 "sender": sender,
                 "body": msg["body"],
+                "created_at": msg["created_at"],
             },
         },
     )
 
-    # Forward outbound messages to Telegram if bridge is wired (no-op otherwise).
-    try:
-        from ..tg.bot import forward_to_telegram  # local import to avoid hard dep
-        await forward_to_telegram(target, sender, msg)
-    except Exception:
-        pass
-
-    # `created_at` is set by SQLite default; fetch fresh value cheaply.
-    from ..db import get_db
-    async with get_db().execute(
-        "SELECT created_at FROM messages WHERE id = ?", (msg["id"],)
-    ) as cur:
-        row = await cur.fetchone()
+    # Forward outbound messages to Telegram off the response path so a slow
+    # or failing TG can't delay the user's send (the function logs its own
+    # errors and is a no-op when the bridge is disabled).
+    import asyncio
+    from ..tg.bot import forward_to_telegram
+    asyncio.create_task(forward_to_telegram(target, sender, msg))
 
     return MessageOut(
         id=msg["id"],
         sender=sender,
         body=msg["body"],
-        created_at=row["created_at"] if row else 0,
+        created_at=msg["created_at"],
     )

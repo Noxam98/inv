@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, Response, status
 from pydantic import BaseModel, Field
 
 from ..config import settings
-from .deps import make_current_user_dep
+from .deps import make_current_user_dep, make_session_token_dep
 from .service import (
     User,
     create_session,
@@ -20,6 +20,7 @@ from .service import (
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 current_user = make_current_user_dep()
+current_session_token = make_session_token_dep()
 
 
 class RegisterResponse(BaseModel):
@@ -105,10 +106,15 @@ async def login(req: LoginRequest, response: Response) -> UserOut:
 
 
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
-async def logout(response: Response, user: User = Depends(current_user)) -> Response:
-    # Best effort: delete the current session token from DB. We don't know the raw
-    # token here (it's only in the cookie), so for now just clear the cookie. To
-    # purge from DB, accept the token via a request body or read the raw header.
+async def logout(
+    response: Response,
+    token: str | None = Depends(current_session_token),
+) -> Response:
+    # Invalidate the server-side session so a stolen cookie can't be replayed
+    # until TTL. Tolerate missing/invalid tokens — logout should always succeed
+    # from the client's perspective.
+    if token:
+        await delete_session(token)
     _clear_session_cookie(response)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 

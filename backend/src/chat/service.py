@@ -81,6 +81,11 @@ async def insert_message(
             "UPDATE chat_sessions SET last_message_at = unixepoch() WHERE id = ?",
             (chat_session_id,),
         )
+        async with conn.execute(
+            "SELECT created_at FROM messages WHERE id = ?", (message_id,)
+        ) as cur2:
+            row = await cur2.fetchone()
+        created_at = row["created_at"] if row else 0
 
     return {
         "id": message_id,
@@ -88,6 +93,7 @@ async def insert_message(
         "sender": sender,
         "body": body,
         "tg_message_id": tg_message_id,
+        "created_at": created_at,
     }
 
 

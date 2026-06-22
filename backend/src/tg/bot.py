@@ -61,13 +61,14 @@ async def forward_to_telegram(
 ) -> None:
     """Push a freshly-stored message into the corresponding TG topic. No-op
     if the bridge isn't configured. Failures are logged, not raised — the
-    user-facing chat must not depend on TG availability."""
+    user-facing chat must not depend on TG availability. Intended to be
+    fire-and-forget via asyncio.create_task from the caller."""
     if not settings.tg_enabled:
         return
     if sender != "user":
         # Admin replies originate from TG; no need to echo them back.
         return
-    try:
+    try:  # noqa: BLE001 — log everything; never let TG break the chat
         conn = get_db()
         async with conn.execute(
             "SELECT cs.tg_thread_id, u.handle FROM chat_sessions cs "
@@ -127,6 +128,11 @@ async def handle_update(update: dict[str, Any]) -> None:
         {
             "type": "message",
             "chat_session_id": chat_session_id,
-            "message": {"id": stored["id"], "sender": "admin", "body": text},
+            "message": {
+                "id": stored["id"],
+                "sender": "admin",
+                "body": text,
+                "created_at": stored["created_at"],
+            },
         },
     )

@@ -23,7 +23,7 @@ _hasher = PasswordHasher()
 @dataclass(slots=True)
 class User:
     id: int
-    handle: string
+    handle: str
     is_admin: bool
 
 
