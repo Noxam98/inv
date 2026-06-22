@@ -59,7 +59,7 @@ const LoaderText = styled.div`
 `;
 
 export default function ProtectedRoute({ children }) {
-  const session = useAuthStore((s) => s.session);
+  const user = useAuthStore((s) => s.user);
   const ready = useAuthStore((s) => s.ready);
   const location = useLocation();
 
@@ -73,7 +73,7 @@ export default function ProtectedRoute({ children }) {
     );
   }
 
-  if (!session) {
+  if (!user) {
     return <Navigate to="/signin" replace state={{ from: location.pathname }} />;
   }
 

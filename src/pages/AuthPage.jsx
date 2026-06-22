@@ -576,8 +576,9 @@ const PLACEHOLDER_SAMPLES = [
 export default function AuthPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const session = useAuthStore((s) => s.session);
+  const user = useAuthStore((s) => s.user);
   const ready = useAuthStore((s) => s.ready);
+  const setUser = useAuthStore((s) => s.setUser);
   const redirectTo = location.state?.from || '/';
 
   const [code, setCode] = useState('');
@@ -597,8 +598,8 @@ export default function AuthPage() {
   const placeholder = useTypewriter(PLACEHOLDER_SAMPLES, { active: !inputFocused });
 
   useEffect(() => {
-    if (ready && session) navigate(redirectTo, { replace: true });
-  }, [ready, session, navigate, redirectTo]);
+    if (ready && user) navigate(redirectTo, { replace: true });
+  }, [ready, user, navigate, redirectTo]);
 
   const canSubmit = useMemo(() => agreed && code.trim().length > 12 && !loggingIn, [agreed, code, loggingIn]);
 
@@ -607,11 +608,13 @@ export default function AuthPage() {
     if (!canSubmit) return;
     setLoggingIn(true);
     setLoginErr(null);
-    const { error } = await signInWithCode(code);
+    const { data, error } = await signInWithCode(code);
     if (error) {
       setLoginErr(error.message || 'Authentication failed');
       setLoggingIn(false);
+      return;
     }
+    setUser(data.user);
   };
 
   const onGenerate = async () => {
@@ -640,11 +643,20 @@ export default function AuthPage() {
   const onContinue = async () => {
     if (!issued || !saved) return;
     setAutoLoading(true);
-    const { error } = await signInWithCode(issued.code);
+    // The register endpoint already issued a session cookie. We have the user
+    // shape from the issued payload — just push it into the store and the
+    // ready/user effect handles the redirect.
+    if (issued.user) {
+      setUser(issued.user);
+      return;
+    }
+    const { data, error } = await signInWithCode(issued.code);
     if (error) {
       setIssuedErr(error.message || 'Sign-in failed');
       setAutoLoading(false);
+      return;
     }
+    setUser(data.user);
   };
 
   const isSignUp = location.pathname === '/signup';
